@@ -1,0 +1,12 @@
+0.9.7 Release Notes
+Contributions made by Crieve:
+* Fists of the Unrelenting now has the correct timeline assigned.
+* Moved some Coldridge Valley specific zone drops from Dun Morogh. Coldridge Pass now shows the Coldridge Valley mini list.
+* Added the Frostmane Shortsword to Dun Morogh.
+* Added presets for RWP filters based on what a class can transmog eventually.
+* Added a bunch of white collectible items to Dun Morogh.
+* Moved two Northshire Valley zone drops to the subzone.
+* Added a filter for tracking "Removed With Patch Items" (RWP). This filter will naturally track items that you can collect for transmog. Items awarded from quests completed that get removed from game in the future will also trigger this collection behaviour.
+* Fix for BoP RWP item collection detection.
+* Yet another attempt to fix the RWP logic.
+
