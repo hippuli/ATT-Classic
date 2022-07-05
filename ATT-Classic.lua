@@ -635,10 +635,16 @@ end
 local function GetProgressTextForTooltip(data)
 	if data.total and (data.total > 1 or (data.total > 0 and not data.collectible)) then
 		return GetProgressColorText(data.progress or 0, data.total);
-	elseif data.collectible then
+	elseif data.collectible or (data.spellID and data.itemID and data.trackable) then
 		return GetCollectionText(data.collected);
 	elseif data.trackable then
 		return GetCompletionText(data.saved);
+	end
+end
+local function GetAddedWithPatchString(awp)
+	if awp then
+		awp = tonumber(awp);
+		return "This gets added in patch " .. math.floor(awp / 10000) .. "." .. (math.floor(awp / 100) % 10) .. "." .. (awp % 10);
 	end
 end
 local function GetRemovedWithPatchString(rwp)
@@ -2151,6 +2157,10 @@ local function GetCachedSearchResults(search, method, paramA, paramB, ...)
 		
 		if group.rwp then
 			tinsert(info, 1, { left = GetRemovedWithPatchString(group.rwp), wrap = true, color = "FFFFAAAA" });
+		end
+		
+		if group.awp then
+			tinsert(info, 1, { left = GetAddedWithPatchString(group.awp), wrap = true, color = "FFAAFFAA" });
 		end
 		
 		if group.isLimited then
@@ -4005,7 +4015,18 @@ end,
 		if not t.rep then
 			local f = app.SearchForField("factionID", factionID);
 			if f and #f > 0 then
-				t.rep = f[1];
+				if #f == 1 then
+					t.rep = f[1];
+				else
+					for i,o in ipairs(f) do
+						if o.key == "factionID" then
+							t.rep = o;
+						end
+					end
+					if not t.rep then
+						return true;
+					end
+				end
 			else
 				return true;
 			end
@@ -5968,7 +5989,7 @@ local itemFields = {
 		return false;
 	end,
 	["collectibleAsRWP"] = function(t)
-		if t.rwp then
+		if (t.rwp or (t.u and (t.u == 2 or t.u == 3 or t.u == 4))) then
 			if app.CollectibleRWP and t.f and not BlacklistedRWPItems[t.itemID] then
 				return app.Settings:GetFilterForRWPBase(t.f);
 				--[[
@@ -6065,28 +6086,36 @@ local itemFields = {
 		
 	end,
 	["collectedAsRWP"] = function(t)
-		if t.rwp and app.CollectibleRWP and t.f and app.Settings:GetFilterForRWPBase(t.f) then
-			local id = t.itemID;
-			if t.b and t.b == 1 then
+		if (t.rwp or (t.u and (t.u == 2 or t.u == 3 or t.u == 4))) and app.CollectibleRWP and t.f and app.Settings:GetFilterForRWPBase(t.f) then
+			local id, b = t.itemID, t.b;
+			if b and b == 1 then
 				-- BOP Rules
 				if t.parent and t.parent.key == "questID" and not t.parent.repeatable then
-					if t.parent.saved and app.Settings:GetFilterForRWP(t.f) and app.RecursiveDefaultClassAndRaceFilter(t) then
-						if not ATTAccountWideData.RWP[id] and app.lastMsg then
-							print((t.text or RETRIEVING_DATA) .. " was added to your collection!");
-							app:PlayFanfare();
+					if app.Settings:GetFilterForRWP(t.f) then
+						local searchResults = app.SearchForField("itemID", id);
+						if searchResults and #searchResults > 0 then
+							local any = false;
+							for i,o in ipairs(searchResults) do
+								if ((o.key == "questID" and o.saved) or (o.parent and o.parent.key == "questID" and o.parent.saved)) and app.RecursiveDefaultClassAndRaceFilter(o) then
+									any = true;
+								end
+							end
+							if any then
+								if not ATTAccountWideData.RWP[id] and app.lastMsg then
+									print((t.text or RETRIEVING_DATA) .. " was added to your collection!");
+									app:PlayFanfare();
+								end
+								app.CurrentCharacter.RWP[id] = 1;
+								ATTAccountWideData.RWP[id] = 1;
+								return 1;
+							end
 						end
-						app.CurrentCharacter.RWP[id] = 1;
-						ATTAccountWideData.RWP[id] = 1;
-						return 1;
 					end
-					
-					if app.AccountWideRWP and ATTAccountWideData.RWP[id] then return 2; end
-					return 0;
 				end
 			end
 			
 			-- BOE Rules
-			if GetItemCount(id, true) > 0 then
+			if GetItemCount(id, true) > 0 and ((not b or b == 2 or b == 3) or app.Settings:GetFilterForRWP(t.f)) then
 				if not ATTAccountWideData.RWP[id] and app.lastMsg then
 					print((t.text or RETRIEVING_DATA) .. " was added to your collection!");
 					app:PlayFanfare();
@@ -8324,7 +8353,7 @@ UpdateGroup = function(parent, group)
 			visible = UpdateGroups(group, group.g);
 			
 			-- If the 'can equip' filter says true
-			if app.GroupFilter(group) then
+			if app.GroupFilter(group) and app.ClassRequirementFilter(group) and app.RaceRequirementFilter(group) then
 				-- Increment the parent group's totals.
 				parent.total = (parent.total or 0) + group.total;
 				parent.progress = (parent.progress or 0) + group.progress;
@@ -9571,6 +9600,20 @@ local function RowOnEnter(self)
 					end
 				end
 				if not found then GameTooltip:AddLine(reference.description, 0.4, 0.8, 1, 1); end
+			end
+			if reference.awp then
+				local found = false;
+				local awp = GetAddedWithPatchString(reference.awp);
+				for i=1,GameTooltip:NumLines() do
+					if _G["GameTooltipTextLeft"..i]:GetText() == awp then
+						found = true;
+						break;
+					end
+				end
+				if not found then
+					local a,r,g,b = HexToARGB("FFAAFFAA");
+					GameTooltip:AddLine(awp, r / 255, g / 255, b / 255, 1);
+				end
 			end
 			if reference.rwp then
 				local found = false;
@@ -11194,6 +11237,24 @@ function app:BuildSearchResponse(groups, field, value)
 		return t;
 	end
 end
+function app:BuildSearchResponseForField(groups, field)
+	if groups then
+		local t;
+		for i,group in ipairs(groups) do
+			if group[field] then
+				if not t then t = {}; end
+				tinsert(t, CloneData(group));
+			elseif group.g then
+				local response = app:BuildSearchResponseForField(group.g, field);
+				if response then
+					if not t then t = {}; end
+					tinsert(t, setmetatable({g=response}, { __index = group }));
+				end
+			end
+		end
+		return t;
+	end
+end
 
 -- Create the Primary Collection Window (this allows you to save the size and location)
 app:GetWindow("Prime"):SetSize(425, 305);
@@ -12044,6 +12105,10 @@ app:GetWindow("CurrentInstance", UIParent, function(self, force, got)
 							clone[key] = value;
 						end
 					end
+					local c = GetRelativeValue(group, "c");
+					if c then clone.c = c; end
+					local r = GetRelativeValue(group, "r");
+					if r then clone.r = r; end
 					setmetatable(clone, getmetatable(group));
 					
 					-- If this is relative to a holiday, let's do something special
@@ -13086,6 +13151,62 @@ app:GetWindow("Random", UIParent, function(self)
 		app.VisibilityFilter = visibilityFilter;
 	end
 end);
+app:GetWindow("RWP", UIParent, function(self)
+	if self:IsVisible() then
+		if not self.initialized then
+			self.initialized = true;
+			self.dirty = true;
+			local actions = {
+				['text'] = "Removed With Patch - Get 'Em Now!",
+				['icon'] = app.asset("Ability_Rogue_RolltheBones.blp"), 
+				["description"] = "This window shows you all of the stuff that gets removed from the game soonish. Go get 'em!",
+				['visible'] = true, 
+				['expanded'] = true,
+				['back'] = 1,
+				["indent"] = 0,
+				['OnUpdate'] = function(data)
+					--if not self.dirty then return nil; end
+					--self.dirty = nil;
+					
+					local g = {};
+					if not data.results then
+						data.results = app:BuildSearchResponseForField(app:GetWindow("Prime").data.g, "rwp");
+					end
+					if #data.results > 0 then
+						for i,result in ipairs(data.results) do
+							table.insert(g, result);
+						end
+					end
+					data.g = g;
+					if #g > 0 then
+						for i,entry in ipairs(g) do
+							entry.indent = nil;
+						end
+						data.progress = 0;
+						data.total = 0;
+						data.indent = 0;
+						data.visible = true;
+						BuildGroups(data, data.g);
+						app.UpdateGroups(data, data.g);
+						if not data.expanded then
+							data.expanded = true;
+							ExpandGroupsRecursively(data, true);
+						end
+					end
+					BuildGroups(self.data, self.data.g);
+					UpdateWindow(self, true);
+				end,
+				['options'] = { },
+				['g'] = { },
+			};
+			self.data = actions;
+		end
+		
+		-- Update the window and all of its row data
+		if self.data.OnUpdate then self.data.OnUpdate(self.data, self); end
+		UpdateWindow(self, true);
+	end
+end);
 app:GetWindow("SoftReserves", UIParent, function(self)
 	if self:IsVisible() then
 		if not self.initialized then
@@ -13717,6 +13838,17 @@ app:GetWindow("Sync", UIParent, function(self)
 						end,
 						['OnUpdate'] = app.AlwaysShowUpdate,
 					},
+					{
+						['text'] = "Sync All Characters",
+						['icon'] = app.asset("Ability_Priest_VoidShift"),
+						['description'] = "Click here to sync all of your characters.",
+						['visible'] = true,
+						['OnClick'] = function(row, button)
+							app:Synchronize();
+							return true;
+						end,
+						['OnUpdate'] = app.AlwaysShowUpdate,
+					},
 					-- Characters Section
 					{
 						['text'] = "Characters",
@@ -13731,7 +13863,7 @@ app:GetWindow("Sync", UIParent, function(self)
 										['OnClick'] = OnClickForCharacter,
 										['OnTooltip'] = OnTooltipForCharacter,
 										['OnUpdate'] = app.AlwaysShowUpdate,
-										["saved"] = not character.ignored,
+										["saved"] = not character.ignored and 1,
 										["trackable"] = true,
 										['visible'] = true,
 									}));
@@ -14363,6 +14495,12 @@ SlashCmdList["ATTC"] = function(cmd)
 			return true;
 		elseif strsub(cmd, 1, 4) == "mini" then
 			app:ToggleMiniListForCurrentZone();
+			return true;
+		elseif cmd == "dailies" then
+			app:GetWindow("Dailies"):Toggle();
+			return true;
+		elseif cmd == "rwp" then
+			app:GetWindow("RWP"):Toggle();
 			return true;
 		else
 			local subcmd = strsub(cmd, 1, 6);

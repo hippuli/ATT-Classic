@@ -1,12 +1,53 @@
-0.9.7 Release Notes
+0.9.8 Release Notes
 Contributions made by Crieve:
-* Fists of the Unrelenting now has the correct timeline assigned.
-* Moved some Coldridge Valley specific zone drops from Dun Morogh. Coldridge Pass now shows the Coldridge Valley mini list.
-* Added the Frostmane Shortsword to Dun Morogh.
-* Added presets for RWP filters based on what a class can transmog eventually.
-* Added a bunch of white collectible items to Dun Morogh.
-* Moved two Northshire Valley zone drops to the subzone.
-* Added a filter for tracking "Removed With Patch Items" (RWP). This filter will naturally track items that you can collect for transmog. Items awarded from quests completed that get removed from game in the future will also trigger this collection behaviour.
-* Fix for BoP RWP item collection detection.
-* Yet another attempt to fix the RWP logic.
+* Schematic: Minor Recombobulator was added to Gagsprocket in the Barrens with TBC.
+* Tier 2 DMF turn ins end at 1050.
+* Ravenholdt reputation calculations should now take into consideration ending at 20999 / 21000 and force you to collect the extra 5 boxes.
+* DMF Tier 6 is FRIENDLY + 2001.
+* Syncing main.lua changes between versions.
+* Fixed how RWP items interact with quests, particularly when that item can be awarded from two quests, one for each faction.
+* RWP items used as cost for quests now count as collected.
+* Added a Sync All Characters button to the Sync Window.
+* Marked Annora as Enchanting only.
+* Tier objects now automatically add a timeline for the expansion.
+* Forgot someone thought this was a good idea.
+* Added Recipe: Elixir of Ogre's Strength to Hillsbrad and Duskwood.
+* npc no longer dies if you don't supply either an id or t.
+* Parser now prints the name of the file loaded using an import statement to a comment in the file for debugging purposes. Parser now also can handle version numbers in this format 20401 when looking at timeline data.
+* Fixed a bug with EXALTED_REP_OnUpdate involving items marked with a factionID.
+* Mortal Champions and Secrets of the Qiraji will now continue to appear until you are exalted with the Brood of Nozdormu. Items that were incorrectly marked Grand Commendations prior to Cost being a thing are no longer marked as such.
+* Spells in Crafted Items should not be collectible. (Disenchant showing up for a Warrior without enchanting)
+* Updated the Swamp of Sorrows.
+* Swamp of Sorrows now resides on the Retail Database.
+* Recipes will now properly show Collected / Not Collected in their tooltips even when you don't have recipe tracking turned on.
+* Fixed the format of version strings.
+* Fixed nested quests with race/class requirements (naxx particularly) showing in the mini list with RWP turned on.
+* Updated the Burning Steppes.
+* Burning Steppes now resides on the Retail Database.
+* Updated Ironforge.
+* Updated Badlands Rares and Zone Drops.
+* Thinking Cap was actually added back later in the game's history.
+* Thinking Cap was actually added back later in the game's history. Added timeline data to the rares and flight paths of the Badlands.
+* Updated the Badlands.
+* The Badlands now resides on the Retail Database.
+* Updated Arathi Highlands Zone Drops and Rares.
+* Updated Arathi Highlands.
+* Arathi Highlands now resides on the Retail database.
+* Removed placeholder reference files for Kalimdor and merged into Retail Database References.
+* Replaced all references to an invalid character code with a single quote that effectively does the same thing in English.
+* Consolidated Kalimdor split files (old format) into zone files.
+* Fixed some Darnassus / Teldrassil coordinates for the Midsummer event.
+* Updated Silverpine Forest.
+* Moved Silverpine Forest over to the retail database.
+* Added "/att rwp" to see all of the future removed from game stuff in ATT in a nice condensed window. Added a link to the Dailies popout. (/att dailies)
+* Updated The Hinterlands.
+* The Hinterlands now resides on the Retail database.
+* Updated the Sporeggar Faction Tooltip.
+* Added information about Ethereum Prisoner I.D. Tags to the Consortium Faction Tooltip.
+* Flesh Carver has a strange, yet unique history of accessibility. Fixed the timeline calculation code to properly handle when you're in between two timeline values. Added the "Added With Patch" value showing when an item will be reintroduced, or in the case of Never Implemented items that are introduced later, that patch data. Added template parser for Wrath Classic.
+* Updated Tirisfal Glades. Added Deathknell.
+* Updated Western Plaguelands. Tirisfal Glades now resides on the Retail Database.
+* Western Plaguelands now resides on the Retail Database.
+* Updated Eastern Plaguelands.
+* Eastern Plaguelands now resides on the Retail database for easier synchronous updates.
 
