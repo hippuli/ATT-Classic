@@ -2969,6 +2969,7 @@ CacheFields = function(group)
 		end
 	end
 end
+app.CacheFields = CacheFields;
 end)();
 local function SearchForFieldRecursively(group, field, value)
 	if group.g then
@@ -3794,10 +3795,6 @@ end
 
 -- Achievement Lib
 (function()
-local IsAchievementCollected = function(achievementID)
-	if app.CurrentCharacter.Achievements[achievementID] then return 1; end
-	if app.AccountWideAchievements and ATTAccountWideData.Achievements[achievementID] then return 2; end
-end
 local SetAchievementCollected = function(achievementID, collected)
 	if collected then
 		app.CurrentCharacter.Achievements[achievementID] = 1;
@@ -3813,18 +3810,128 @@ local SetAchievementCollected = function(achievementID, collected)
 		end
 	end
 end
-local GetAchievementCategory = function(achievementID)
-	local data = L.ACHIEVEMENT_DATA[achievementID];
-	if data then return data[1]; end
-end
 local fields = {
 	["key"] = function(t)
 		return "achievementID";
 	end,
-	["text"] = function(t)
-		return "|cffffff00[" .. (t.name or RETRIEVING_DATA) .. "]|r";
+	["collectible"] = function(t)
+		return app.CollectibleAchievements;
 	end,
-	["name"] = function(t)
+	["collected"] = function(t)
+		if app.CurrentCharacter.Achievements[t.achievementID] then return 1; end
+		if app.AccountWideAchievements and ATTAccountWideData.Achievements[t.achievementID] then return 2; end
+	end,
+	["OnUpdate"] = function(t) ResolveSymbolicLink(t); end,
+};
+local categoryFields = {
+	["key"] = function(t)
+		return "achievementCategoryID";
+	end,
+	["icon"] = function(t)
+		return app.asset("Category_Achievements");
+	end,
+};
+local criteriaFields = {
+	["key"] = function(t)
+		return "criteriaID";
+	end,
+	["achievementID"] = function(t)
+		return t.parent.achievementID;
+	end,
+	["index"] = function(t)
+		return 1;
+	end,
+	["collectible"] = function(t)
+		return t.parent.collectible;
+	end,
+	["trackable"] = function(t)
+		return true;
+	end,
+};
+
+if GetCategoryInfo and GetCategoryInfo(92) ~= "" then
+	-- Achievements are in. We can use the API.
+	fields.text = function(t)
+		return t.link or RETRIEVING_DATA;
+	end
+	fields.name = function(t)
+		return select(2, GetAchievementInfo(t.achievementID));
+	end
+	fields.link = function(t)
+		return GetAchievementLink(t.achievementID);
+	end
+	fields.icon = function(t)
+		return select(10, GetAchievementInfo(t.achievementID));
+	end
+	fields.parentCategoryID = function(t)
+		return GetAchievementCategory(t.achievementID) or -1;
+	end
+	fields.SetAchievementCollected = function(t)
+		print("Attempted to retrieve the function SetAchievementCollected from the Achievement object. (no longer available)");
+		return function(achievementID, collected)
+			print("Attempted to set achievement " .. achievementID .. " as collected: " .. (collected and 1 or 0));
+		end
+	end
+	categoryFields.text = function(t)
+		return GetCategoryInfo(t.achievementCategoryID);
+	end
+	categoryFields.parentCategoryID = function(t)
+		return select(2, GetCategoryInfo(t.achievementCategoryID)) or -1;
+	end
+	criteriaFields.collected = function(t)
+		-- If the parent is collected, return immediately.
+		local collected = t.parent.collected;
+		if collected then return collected; end
+		
+		-- Check to see if the criteria was completed.
+		local achievementID = t.achievementID;
+		if achievementID then
+			if app.CurrentCharacter.Achievements[achievementID] then return true; end
+			if t.criteriaID and t.criteriaID <= (GetAchievementNumCriteria(achievementID) or -1) then
+				return select(3, GetAchievementCriteriaInfo(achievementID, t.criteriaID, true));
+			end
+		end
+	end
+	criteriaFields.saved = function(t)
+		-- If the parent is saved, return immediately.
+		local saved = t.parent.saved;
+		if saved then return saved; end
+		
+		-- Check to see if the criteria was completed.
+		local achievementID = t.achievementID;
+		if achievementID then
+			if app.CurrentCharacter.Achievements[achievementID] then return true; end
+			if t.criteriaID and t.criteriaID <= (GetAchievementNumCriteria(achievementID) or -1) then
+				return select(3, GetAchievementCriteriaInfo(achievementID, t.criteriaID, true));
+			end
+		end
+	end
+	app.CreateAchievement = function(id, t)
+		return setmetatable(constructor(id, t, "achievementID"), app.BaseAchievement);
+	end
+	app.CreateAchievementCriteria = function(id, t)
+		return setmetatable(constructor(id, t, "criteriaID"), app.BaseAchievementCriteria);
+	end
+	
+	local function CheckAchievementCollectionStatus(achievementID)
+		achievementID = tonumber(achievementID);
+		SetAchievementCollected(achievementID, select(13, GetAchievementInfo(achievementID)));
+	end
+	app.RefreshAchievementCollection = function()
+		if ATTAccountWideData then
+			for achievementID,_ in pairs(fieldCache["achievementID"]) do
+				CheckAchievementCollectionStatus(achievementID);
+			end
+		end
+	end
+	app:RegisterEvent("ACHIEVEMENT_EARNED");
+	app.events.ACHIEVEMENT_EARNED = CheckAchievementCollectionStatus;
+else
+	-- Achievements are NOT in. We can't use the API.
+	fields.text = function(t)
+		return "|cffffff00[" .. (t.name or RETRIEVING_DATA) .. "]|r";
+	end
+	fields.name = function(t)
 		local data = L.ACHIEVEMENT_DATA[t.achievementID];
 		if data and data[2] then return data[2]; end
 		if t.providers then
@@ -3839,8 +3946,8 @@ local fields = {
 			end
 		end
 		if t.spellID then return select(1, GetSpellInfo(t.spellID)); end
-	end,
-	["icon"] = function(t)
+	end
+	fields.icon = function(t)
 		local data = L.ACHIEVEMENT_DATA[t.achievementID];
 		if data and data[3] then return data[3]; end
 		if t.providers then
@@ -3856,18 +3963,13 @@ local fields = {
 		end
 		if t.spellID then return select(3, GetSpellInfo(t.spellID)); end
 		return t.parent.icon or "Interface\\Worldmap\\Gear_64Grey";
-	end,
-	["collectible"] = function(t)
-		return app.CollectibleAchievements;
-	end,
-	["collected"] = function(t)
-		return IsAchievementCollected(t.achievementID);
-	end,
-	["parentCategoryID"] = function(t)
-		return GetAchievementCategory(t.achievementID) or -1;
-	end,
-	["SetAchievementCollected"] = function() return SetAchievementCollected; end,
-	["OnUpdateForSpellID"] = function(t)
+	end
+	fields.parentCategoryID = function(t)
+		local data = L.ACHIEVEMENT_DATA[t.achievementID];
+		if data then return data[1]; end
+		return -1;
+	end
+	fields.OnUpdateForSpellID = function(t)
 		if t.collectible then
 			local spellID = t.spellID;
 			local collected = app.IsSpellKnown(spellID, t.rank);
@@ -3879,42 +3981,49 @@ local fields = {
 			end
 			t.SetAchievementCollected(t.achievementID, collected);
 		end
-	end,
-	["OnUpdate"] = function(t) ResolveSymbolicLink(t); end,
-};
-app.BaseAchievement = app.BaseObjectFields(fields);
-
-local fieldsWithSpellID = RawCloneData(fields);
-fieldsWithSpellID.OnUpdate = fields.OnUpdateForSpellID;
-app.BaseAchievementWithSpellID = app.BaseObjectFields(fieldsWithSpellID);
-app.CreateAchievement = function(id, t)
-	t = constructor(id, t, "achievementID");
-	return setmetatable(t, t.spellID and app.BaseAchievementWithSpellID or app.BaseAchievement);
-end
-
-local categoryFields = {
-	["key"] = function(t)
-		return "achievementCategoryID";
-	end,
-	["text"] = function(t)
+	end
+	fields.SetAchievementCollected = function(t)
+		return SetAchievementCollected;
+	end
+	categoryFields.text = function(t)
 		local data = L.ACHIEVEMENT_CRITERIA_DATA[t.achievementCategoryID];
 		if data then return data[2]; end
 		return RETRIEVING_DATA .. " achcat:" .. t.achievementCategoryID;
-	end,
-	["icon"] = function(t)
-		return app.asset("Category_Achievements");
-	end,
-	["parentCategoryID"] = function(t)
+	end
+	categoryFields.parentCategoryID = function(t)
 		local data = L.ACHIEVEMENT_CRITERIA_DATA[t.achievementCategoryID];
 		if data then return data[1]; end
 		return -1;
-	end,
-};
+	end
+	criteriaFields.collected = function(t)
+		-- If the parent is collected, return immediately.
+		local collected = t.parent.collected;
+		if collected then return collected; end
+	end
+	criteriaFields.saved = function(t)
+		-- If the parent is saved, return immediately.
+		local saved = t.parent.saved;
+		if saved then return saved; end
+	end
+	
+	local fieldsWithSpellID = RawCloneData(fields);
+	fieldsWithSpellID.OnUpdate = fields.OnUpdateForSpellID;
+	app.BaseAchievementWithSpellID = app.BaseObjectFields(fieldsWithSpellID);
+	app.CreateAchievement = function(id, t)
+		t = constructor(id, t, "achievementID");
+		return setmetatable(t, t.spellID and app.BaseAchievementWithSpellID or app.BaseAchievement);
+	end
+	app.CreateAchievementCriteria = function(id, t)
+		-- We don't support showing criteria like this. It's silly.
+		return nil;
+	end
+end
+
+app.BaseAchievement = app.BaseObjectFields(fields);
 app.BaseAchievementCategory = app.BaseObjectFields(categoryFields);
 app.CreateAchievementCategory = function(id, t)
 	return setmetatable(constructor(id, t, "achievementCategoryID"), app.BaseAchievementCategory);
 end
-
 app.CommonAchievementHandlers = {
 ["ALL_ITEM_COSTS"] = function(t)
 	local collected = true;
@@ -4114,6 +4223,92 @@ end,
 		end
 	end
 end,
+["LOREMASTER_KALIMDOR_OnUpdate"] = function(t, ...)
+	return app.CommonAchievementHandlers.LOREMASTER_CONTINENT_OnUpdate(t, 1414, ...);
+end,
+["LOREMASTER_EASTERNKINGDOMS_OnUpdate"] = function(t, ...)
+	return app.CommonAchievementHandlers.LOREMASTER_CONTINENT_OnUpdate(t, 1415, ...);
+end,
+["LOREMASTER_CONTINENT_OnUpdate"] = function(t, mapID, ...)
+	if t.collectible and t.parent then
+		local quests = t.quests;
+		if not quests then
+			-- Grab the Continent
+			local results = SearchForField("mapID", mapID);
+			if not results or #results < 1 then return nil; end
+			
+			-- Grab all of the quests on that continent.
+			quests = {};
+			local dungeon_header = {text=GROUP_FINDER,icon = app.asset("Category_D&R"),description = "These are dungeon quests that involve the associated maps for the continent. They may or may not count towards the loremaster achievement. Just get it done and don't be lazy or complain to me.\n\n - Crieve"};
+			local zones_header = {text=BUG_CATEGORY2,icon = app.asset("Category_Zones"),description = "These are outdoor quests that involve the associated maps for the continent."};
+			local response = app:BuildSearchResponseForField(results[1].g, "questID");
+			if response then
+				-- Get the quests list from the zone itself.
+				zones_header.g = response;
+				app:BuildFlatSearchResponseForField(response, "questID", quests);
+				
+				-- Get a list of all of the mapIDs in this structure.
+				response = {};
+				app:BuildFlatSearchResponseForField(zones_header.g, "mapID", response);
+				if #response > 0 then
+					local mapIDs = {};
+					for i,o in ipairs(response) do
+						if o.mapID and not mapIDs[o.mapID] then
+							mapIDs[o.mapID] = true;
+						end
+						if o.maps then
+							for j,id in ipairs(o.maps) do
+								if not mapIDs[id] then
+									mapIDs[id] = true;
+								end
+							end
+						end
+					end
+					response = app:BuildSearchFilteredResponse(app.Categories.Instances, function(group)
+						if group.questID and not group.repeatable then
+							if group.coords then
+								for i,coord in ipairs(group.coords) do
+									if coord[3] and mapIDs[coord[3]] then
+										return true;
+									end
+								end
+							end
+							if group.maps then
+								for i,id in ipairs(group.maps) do
+									if mapIDs[id] then
+										return true;
+									end
+								end
+							end
+							return false;
+						end
+					end);
+					if response then
+						dungeon_header.g = response;
+						app:BuildFlatSearchResponseForField(response, "questID", quests);
+					end
+				end
+			end
+			
+			-- Store the Outdoor Zones and Dungeon structures.
+			t.structures = { dungeon_header, zones_header };
+			
+			-- If additional questIDs were manually included, let's do some extra work.
+			local extraQuestIDs = { ... };
+			if #extraQuestIDs > 0 then
+				-- Clone the list to prevent dirtying the quest list in the zone.
+				quests = RawCloneArray(quests);
+				for i,questID in ipairs(extraQuestIDs) do
+					local results = SearchForField("questID", questID);
+					if results and #results > 0 then
+						tinsert(quests, 1, results[1]);
+					end
+				end
+			end
+		end
+		return app.CommonAchievementHandlers.LOREMASTER_EXPLICIT_OnUpdate(t, quests);
+	end
+end,
 ["LOREMASTER_OnUpdate"] = function(t, ...)
 	if t.collectible and t.parent then
 		local quests = t.quests;
@@ -4170,6 +4365,14 @@ end,
 	if button == "RightButton" then
 		local t = row.ref;
 		local clone = app.CreateMiniListForGroup(app.CreateAchievement(t[t.key], t.quests)).data;
+		clone.description = t.description;
+		return true;
+	end
+end,
+["LOREMASTER_CONTINENT_OnClick"] = function(row, button)
+	if button == "RightButton" then
+		local t = row.ref;
+		local clone = app.CreateMiniListForGroup(app.CreateAchievement(t[t.key], t.structures)).data;
 		clone.description = t.description;
 		return true;
 	end
@@ -4245,98 +4448,6 @@ end,
 	end
 end,
 };
-end)();
-
--- Battle Pet Lib
-(function()
-local fields = {
-	["key"] = function(t)
-		return "speciesID";
-	end,
-	["f"] = function(t)
-		return 101;
-	end,
-	["collectible"] = function(t)
-		return app.CollectibleBattlePets;
-	end,
-	["collected"] = function(t)
-		if t.itemID then
-			if GetItemCount(t.itemID, true) > 0 then
-				app.CurrentCharacter.BattlePets[t.speciesID] = 1;
-				ATTAccountWideData.BattlePets[t.speciesID] = 1;
-				return 1;
-			elseif app.CurrentCharacter.BattlePets[t.speciesID] == 1 then
-				app.CurrentCharacter.BattlePets[t.speciesID] = nil;
-				ATTAccountWideData.BattlePets[t.speciesID] = nil;
-				for guid,characterData in pairs(ATTCharacterData) do
-					if characterData.BattlePets and characterData.BattlePets[t.speciesID] then
-						ATTAccountWideData.BattlePets[t.speciesID] = 1;
-					end
-				end
-			end
-			if app.AccountWideBattlePets and ATTAccountWideData.BattlePets[t.speciesID] then
-				return 2;
-			end
-		end
-	end,
-	["text"] = function(t)
-		return "|cff0070dd" .. (t.name or RETRIEVING_DATA) .. "|r";
-	end,
-	["icon"] = function(t)
-		if t.itemID then
-			return select(5, GetItemInfoInstant(t.itemID)) or "Interface\\Icons\\INV_Misc_QuestionMark";
-		end
-		return "Interface\\Icons\\INV_Misc_QuestionMark";
-		--return select(2, C_PetJournal.GetPetInfoBySpeciesID(t.speciesID));
-	end,
-	--[[
-	["description"] = function(t)
-		return select(6, C_PetJournal.GetPetInfoBySpeciesID(t.speciesID));
-	end,
-	["displayID"] = function(t)
-		return select(12, C_PetJournal.GetPetInfoBySpeciesID(t.speciesID));
-	end,
-	["petTypeID"] = function(t)
-		return select(3, C_PetJournal.GetPetInfoBySpeciesID(t.speciesID));
-	end,
-	]]--
-	["name"] = function(t)
-		return select(1, GetItemInfo(t.itemID));
-		--return select(1, C_PetJournal.GetPetInfoBySpeciesID(t.speciesID));
-	end,
-	["link"] = function(t)
-		if t.itemID then
-			local link = select(2, GetItemInfo(t.itemID));
-			if link then
-				t.link = link;
-				return link;
-			end
-		end
-	end,
-	["tsm"] = function(t)
-		return string.format("p:%d:1:3", t.speciesID);
-	end,
-};
-app.BaseSpecies = app.BaseObjectFields(fields);
-app.CreateSpecies = function(id, t)
-	return setmetatable(constructor(id, t, "speciesID"), app.BaseSpecies);
-end
-
-app.BasePetType = app.BaseObjectFields({
-	["key"] = function(t)
-		return "petTypeID";
-	end,
-	["text"] = function(t)
-		return _G["BATTLE_PET_NAME_" .. t.petTypeID];
-	end,
-	["icon"] = function(t)
-		-- return "Interface/Icons/Icon_PetFamily_"..PET_TYPE_SUFFIX[t.petTypeID];
-		return app.asset("Icon_PetFamily_"..PET_TYPE_SUFFIX[t.petTypeID]);
-	end,
-});
-app.CreatePetType = function(id, t)
-	return setmetatable(constructor(id, t, "petTypeID"), app.BasePetType);
-end
 end)();
 
 -- Category Lib
@@ -5160,6 +5271,296 @@ app.CreateUnit = function(unit, t)
 end
 end)();
 
+-- Companion Lib
+(function()
+local SetBattlePetCollected = function(speciesID, collected)
+	if collected then
+		app.CurrentCharacter.BattlePets[speciesID] = 1;
+		ATTAccountWideData.BattlePets[speciesID] = 1;
+		return 1;
+	elseif app.CurrentCharacter.BattlePets[speciesID] == 1 then
+		app.CurrentCharacter.BattlePets[speciesID] = nil;
+		ATTAccountWideData.BattlePets[speciesID] = nil;
+		for guid,characterData in pairs(ATTCharacterData) do
+			if characterData.BattlePets and characterData.BattlePets[speciesID] then
+				ATTAccountWideData.BattlePets[speciesID] = 1;
+				break;
+			end
+		end
+	end
+	if app.AccountWideBattlePets and ATTAccountWideData.BattlePets[speciesID] then
+		return 2;
+	end
+end
+local SetMountCollected = function(spellID, collected)
+	if collected then
+		app.CurrentCharacter.Spells[spellID] = 1;
+		ATTAccountWideData.Spells[spellID] = 1;
+		return 1;
+	elseif app.CurrentCharacter.Spells[spellID] == 1 then
+		app.CurrentCharacter.Spells[spellID] = nil;
+		ATTAccountWideData.Spells[spellID] = nil;
+		for guid,characterData in pairs(ATTCharacterData) do
+			if characterData.Spells and characterData.Spells[spellID] then
+				ATTAccountWideData.Spells[spellID] = 1;
+				break;
+			end
+		end
+	end
+	if app.AccountWideMounts and ATTAccountWideData.Spells[spellID] then
+		return 2;
+	end
+end
+local speciesFields = {
+	["key"] = function(t)
+		return "speciesID";
+	end,
+	["f"] = function(t)
+		return 101;
+	end,
+	["collectible"] = function(t)
+		return app.CollectibleBattlePets;
+	end,
+	["text"] = function(t)
+		return "|cff0070dd" .. (t.name or RETRIEVING_DATA) .. "|r";
+	end,
+	["link"] = function(t)
+		if t.itemID then
+			local link = select(2, GetItemInfo(t.itemID));
+			if link then
+				t.link = link;
+				return link;
+			end
+		end
+	end,
+	["tsm"] = function(t)
+		if t.itemID then return string.format("i:%d", t.itemID); end
+		return string.format("p:%d:1:3", t.speciesID);
+	end,
+};
+local mountFields = {
+	["key"] = function(t)
+		return "spellID";
+	end,
+	["text"] = function(t)
+		return "|cffb19cd9" .. t.name .. "|r";
+	end,
+	["icon"] = function(t)
+		return select(3, GetSpellInfo(t.spellID));
+	end,
+	["link"] = function(t)
+		return (t.itemID and select(2, GetItemInfo(t.itemID))) or select(1, GetSpellLink(t.spellID));
+	end,
+	["f"] = function(t)
+		return 100;
+	end,
+	["collectible"] = function(t)
+		return app.CollectibleMounts;
+	end,
+	["explicitlyCollected"] = function(t)
+		return IsSpellKnown(t.spellID) or (t.questID and IsQuestFlaggedCompleted(t.questID)) or (t.itemID and GetItemCount(t.itemID, true) > 0);
+	end,
+	["b"] = function(t)
+		return (t.parent and t.parent.b) or 1;
+	end,
+	["name"] = function(t)
+		return select(1, GetSpellInfo(t.spellID)) or RETRIEVING_DATA;
+	end,
+	["tsmForItem"] = function(t)
+		if t.itemID then return string.format("i:%d", t.itemID); end
+		if t.parent and t.parent.itemID then return string.format("i:%d", t.parent.itemID); end
+	end,
+	["linkForItem"] = function(t)
+		return select(2, GetItemInfo(t.itemID)) or select(1, GetSpellLink(t.spellID));
+	end,
+};
+
+if C_PetJournal then
+	speciesFields.icon = function(t)
+		return select(2, C_PetJournal.GetPetInfoBySpeciesID(t.speciesID));
+	end
+	speciesFields.name = function(t)
+		return select(1, C_PetJournal.GetPetInfoBySpeciesID(t.speciesID));
+	end
+	speciesFields.petTypeID = function(t)
+		return select(3, C_PetJournal.GetPetInfoBySpeciesID(t.speciesID));
+	end
+	speciesFields.displayID = function(t)
+		return select(12, C_PetJournal.GetPetInfoBySpeciesID(t.speciesID));
+	end
+	speciesFields.description = function(t)
+		return select(6, C_PetJournal.GetPetInfoBySpeciesID(t.speciesID));
+	end
+	speciesFields.collected = function(t)
+		return SetBattlePetCollected(t.speciesID, C_PetJournal.GetNumCollectedInfo(t.speciesID) > 0);
+	end
+
+	local SpellIDToMountID = setmetatable({}, { __index = function(t, id)
+		local allMountIDs = C_MountJournal.GetMountIDs();
+		if allMountIDs and #allMountIDs > 0 then
+			for i,mountID in ipairs(allMountIDs) do
+				local spellID = select(2, C_MountJournal.GetMountInfoByID(mountID));
+				if spellID then rawset(t, spellID, mountID); end
+			end
+			setmetatable(t, nil);
+			return rawget(t, id);
+		end
+	end });
+	mountFields.mountID = function(t)
+		return SpellIDToMountID[t.spellID];
+	end
+	mountFields.name = function(t)
+		local mountID = t.mountID;
+		if mountID then return C_MountJournal.GetMountInfoByID(mountID); end
+		return select(1, GetSpellInfo(t.spellID)) or RETRIEVING_DATA;
+	end
+	mountFields.displayID = function(t)
+		local mountID = t.mountID;
+		if mountID then return select(1, C_MountJournal.GetMountInfoExtraByID(mountID)); end
+	end
+	mountFields.lore = function(t)
+		local mountID = t.mountID;
+		if mountID then return select(2, C_MountJournal.GetMountInfoExtraByID(mountID)); end
+	end
+	mountFields.collected = function(t)
+		-- Check all of the matches
+		for i,o in ipairs(app.SearchForField("spellID", t.spellID)) do
+			if o.explicitlyCollected then
+				app.CurrentCharacter.Spells[t.spellID] = 1;
+				ATTAccountWideData.Spells[t.spellID] = 1;
+				return 1;
+			end
+		end
+		
+		-- Unflag collection
+		if app.CurrentCharacter.Spells[t.spellID] == 1 then
+			app.CurrentCharacter.Spells[t.spellID] = nil;
+			ATTAccountWideData.Spells[t.spellID] = nil;
+			for guid,characterData in pairs(ATTCharacterData) do
+				if characterData.Spells and characterData.Spells[t.spellID] then
+					ATTAccountWideData.Spells[t.spellID] = 1;
+				end
+			end
+		end
+		if app.AccountWideMounts and ATTAccountWideData.Spells[t.spellID] then return 2; end
+	end
+else
+	speciesFields.icon = function(t)
+		if t.itemID then
+			return select(5, GetItemInfoInstant(t.itemID)) or "Interface\\Icons\\INV_Misc_QuestionMark";
+		end
+		return "Interface\\Icons\\INV_Misc_QuestionMark";
+	end
+	speciesFields.name = function(t)
+		return select(1, GetItemInfo(t.itemID));
+	end
+	mountFields.name = function(t)
+		return select(1, GetSpellInfo(t.spellID)) or RETRIEVING_DATA;
+	end
+	if GetCompanionInfo then
+		local CollectedBattlePetHelper = {};
+		local CollectedMountHelper = {};
+		local function RefreshCompanionCollectionStatus()
+			setmetatable(CollectedBattlePetHelper, nil);
+			setmetatable(CollectedMountHelper, nil);
+			wipe(CollectedBattlePetHelper);
+			for i=GetNumCompanions("CRITTER"),1,-1 do
+				local spellID = select(3, GetCompanionInfo("CRITTER", i));
+				if spellID then
+					CollectedBattlePetHelper[spellID] = true;
+				else
+					print("Failed to get Companion Info for Critter ".. i);
+				end
+			end
+			wipe(CollectedMountHelper);
+			for i=GetNumCompanions("MOUNT"),1,-1 do
+				local spellID = select(3, GetCompanionInfo("MOUNT", i));
+				if spellID then
+					CollectedMountHelper[spellID] = true;
+				else
+					print("Failed to get Companion Info for Mount ".. i);
+				end
+			end
+		end
+		local meta = { __index = function(t, spellID)
+			RefreshCompanionCollectionStatus();
+			return rawget(t, spellID);
+		end };
+		setmetatable(CollectedBattlePetHelper, meta);
+		setmetatable(CollectedMountHelper, meta);
+		speciesFields.collected = function(t)
+			return SetBattlePetCollected(t.speciesID, (t.spellID and CollectedBattlePetHelper[t.spellID]) or (t.itemID and GetItemCount(t.itemID, true) > 0));
+		end
+		mountFields.collected = function(t)
+			return SetMountCollected(t.spellID, (t.spellID and CollectedMountHelper[t.spellID]) or (t.itemID and GetItemCount(t.itemID, true) > 0));
+		end
+		app:RegisterEvent("COMPANION_LEARNED");
+		app:RegisterEvent("COMPANION_UNLEARNED");
+		app.events.COMPANION_LEARNED = RefreshCompanionCollectionStatus;
+		app.events.COMPANION_UNLEARNED = RefreshCompanionCollectionStatus;
+	else
+		speciesFields.collected = function(t)
+			return SetBattlePetCollected(t.speciesID, t.itemID and GetItemCount(t.itemID, true) > 0);
+		end
+		mountFields.collected = function(t)
+			-- Check all of the matches
+			for i,o in ipairs(app.SearchForField("spellID", t.spellID)) do
+				if o.explicitlyCollected then
+					app.CurrentCharacter.Spells[t.spellID] = 1;
+					ATTAccountWideData.Spells[t.spellID] = 1;
+					return 1;
+				end
+			end
+			
+			-- Unflag collection
+			if app.CurrentCharacter.Spells[t.spellID] == 1 then
+				app.CurrentCharacter.Spells[t.spellID] = nil;
+				ATTAccountWideData.Spells[t.spellID] = nil;
+				for guid,characterData in pairs(ATTCharacterData) do
+					if characterData.Spells and characterData.Spells[t.spellID] then
+						ATTAccountWideData.Spells[t.spellID] = 1;
+					end
+				end
+			end
+			if app.AccountWideMounts and ATTAccountWideData.Spells[t.spellID] then return 2; end
+		end
+	end
+end
+
+app.BasePetType = app.BaseObjectFields({
+	["key"] = function(t)
+		return "petTypeID";
+	end,
+	["text"] = function(t)
+		return _G["BATTLE_PET_NAME_" .. t.petTypeID];
+	end,
+	["icon"] = function(t)
+		-- return "Interface/Icons/Icon_PetFamily_"..PET_TYPE_SUFFIX[t.petTypeID];
+		return app.asset("Icon_PetFamily_"..PET_TYPE_SUFFIX[t.petTypeID]);
+	end,
+});
+app.BaseMount = app.BaseObjectFields(mountFields);
+app.BaseSpecies = app.BaseObjectFields(speciesFields);
+
+local fields = RawCloneData(mountFields);
+fields.link = mountFields.linkForItem;
+fields.tsm = mountFields.tsmForItem;
+app.BaseMountWithItemID = app.BaseObjectFields(fields);
+app.CreateMount = function(id, t)
+	if t and rawget(t, "itemID") then
+		return setmetatable(constructor(id, t, "spellID"), app.BaseMountWithItemID);
+	else
+		return setmetatable(constructor(id, t, "spellID"), app.BaseMount);
+	end
+end
+app.CreatePetType = function(id, t)
+	return setmetatable(constructor(id, t, "petTypeID"), app.BasePetType);
+end
+app.CreateSpecies = function(id, t)
+	return setmetatable(constructor(id, t, "speciesID"), app.BaseSpecies);
+end
+end)();
+
 -- Currency Lib
 (function()
 local fields = {
@@ -5187,6 +5588,15 @@ end)();
 local OnUpdateForDeathTrackerLib = function(t)
 	if app.Settings:Get("Thing:Deaths") then
 		t.visible = app.GroupVisibilityFilter(t);
+		if GetStatistic then
+			local stat = select(1, GetStatistic(60)) or "0";
+			if stat == "--" then stat = "0"; end
+			local deaths = tonumber(stat);
+			if deaths > 0 and deaths > app.CurrentCharacter.Deaths then
+				ATTAccountWideData.Deaths = ATTAccountWideData.Deaths + (deaths - app.CurrentCharacter.Deaths);
+				app.CurrentCharacter.Deaths = deaths;
+			end
+		end
 		t.parent.progress = t.parent.progress + t.progress;
 		t.parent.total = t.parent.total + t.total;
 	else
@@ -5343,6 +5753,62 @@ local fields = {
 app.BaseDifficulty = app.BaseObjectFields(fields);
 app.CreateDifficulty = function(id, t)
 	return setmetatable(constructor(id, t, "difficultyID"), app.BaseDifficulty);
+end
+end)();
+
+-- Encounter Lib
+(function()
+if EJ_GetEncounterInfo then
+	local fields = {
+		["key"] = function(t)
+			return "encounterID";
+		end,
+		["name"] = function(t)
+			return select(1, EJ_GetEncounterInfo(t.encounterID));
+		end,
+		["lore"] = function(t)
+			return select(2, EJ_GetEncounterInfo(t.encounterID));
+		end,
+		["link"] = function(t)
+			return select(5, EJ_GetEncounterInfo(t.encounterID));
+		end,
+		["displayID"] = function(t)
+			return select(4, EJ_GetCreatureInfo(1, t.encounterID));
+		end,
+		["displayInfo"] = function(t)
+			local displayInfos, id, displayInfo = {}, t.encounterID;
+			for i=1,MAX_CREATURES_PER_ENCOUNTER do
+				displayInfo = select(4, EJ_GetCreatureInfo(i, id));
+				if displayInfo then
+					tinsert(displayInfos, displayInfo);
+				else
+					break;
+				end
+			end
+			rawset(t, "displayInfo", displayInfos);
+			return displayInfos;
+		end,
+		["icon"] = function(t)
+			return app.DifficultyIcons[GetRelativeValue(t, "difficultyID") or 1];
+		end,
+		["trackable"] = function(t)
+			return t.questID;
+		end,
+		["saved"] = function(t)
+			if t.questID then
+				return IsQuestFlaggedCompleted(t.questID);
+			end
+		end,
+	};
+	app.BaseEncounter = app.BaseObjectFields(fields);
+	app.CreateEncounter = function(id, t)
+		return setmetatable(constructor(id, t, "encounterID"), app.BaseEncounter);
+	end
+else
+	app.CreateEncounter = function(id, t)
+		-- Do nothing, not supported yet.
+		return nil;
+	end
 end
 end)();
 
@@ -6612,9 +7078,31 @@ local fields = {
 						return 1;
 					end
 				end
+				--[[
+				if not app.MAPHASHTHING then app.MAPHASHTHING = {}; end
+					if not app.MAPHASHTHING[t.explorationID] then
+					app.MAPHASHTHING[t.explorationID] = true;
+					print("Failed to detect maphash '" .. maphash .. "' on map " .. t.mapID .. ".");
+				end
+				]]--
 			end
 		end
 		--[[
+		if not app.MAPTHING then app.MAPTHING = {}; end
+		local exploredMapTextures = C_MapExplorationInfo_GetExploredMapTextures(t.mapID);
+		if not app.MAPTHING[t.mapID] and exploredMapTextures then
+			app.MAPTHING[t.mapID] = true;
+			local hashes = {};
+			for i,o in ipairs(t.parent.g) do
+				if o.maphash then hashes[o.maphash] = o; end
+			end
+			for i,info in ipairs(exploredMapTextures) do
+				local hash = info.textureWidth..":"..info.textureHeight..":"..info.offsetX..":"..info.offsetY;
+				if hash and not hashes[hash] then
+					print("Failed to find areaID for maphash '" .. hash .. "' on map " .. t.mapID .. ".");
+				end
+			end
+		end
 		local coords = t.coords;
 		if coords and #coords > 0 then
 			local c = coords[1];
@@ -6629,7 +7117,7 @@ local fields = {
 				end
 			end
 		end
-		]]
+		]]--
 	end,
 	["coords"] = function(t)
 		local coords = app.ExplorationAreaPositionDB[t.explorationID];
@@ -6678,20 +7166,22 @@ local onMapUpdate = function(t)
 	local explorationByAreaID = {};
 	local explorationHeader = nil;
 	local coordinates = {};
-	for i,o in ipairs(t.g) do
-		if o.key == "headerID" and o.headerID == -15 then
-			explorationHeader = o;
-			if o.g then
-				for j,e in ipairs(o.g) do
-					explorationByAreaID[e.explorationID] = e;
-					if e.coords and #e.coords > 0 then
-						tinsert(coordinates, e.coords[1]);
-					else
-						print("Missing Coordinates for areaID", e.explorationID);
+	if t.g then
+		for i,o in ipairs(t.g) do
+			if o.key == "headerID" and o.headerID == -15 then
+				explorationHeader = o;
+				if o.g then
+					for j,e in ipairs(o.g) do
+						explorationByAreaID[e.explorationID] = e;
+						if e.coords and #e.coords > 0 then
+							tinsert(coordinates, e.coords[1]);
+						else
+							--print("Missing Coordinates for areaID", e.explorationID);
+						end
 					end
 				end
+				break;
 			end
-			break;
 		end
 	end
 	
@@ -6963,81 +7453,6 @@ app:RegisterEvent("MAP_EXPLORATION_UPDATED");
 app:RegisterEvent("UI_INFO_MESSAGE");
 app:RegisterEvent("ZONE_CHANGED");
 app:RegisterEvent("ZONE_CHANGED_NEW_AREA");
-end)();
-
--- Mount Lib
-(function()
-local mountFields = {
-	["key"] = function(t)
-		return "spellID";
-	end,
-	["text"] = function(t)
-		return "|cffb19cd9" .. t.name .. "|r";
-	end,
-	["icon"] = function(t)
-		return select(3, GetSpellInfo(t.spellID));
-	end,
-	["link"] = function(t)
-		return (t.itemID and select(2, GetItemInfo(t.itemID))) or select(1, GetSpellLink(t.spellID));
-	end,
-	["f"] = function(t)
-		return 100;
-	end,
-	["collectible"] = function(t)
-		return app.CollectibleMounts;
-	end,
-	["collected"] = function(t)
-		-- Check all of the matches
-		for i,o in ipairs(app.SearchForField("spellID", t.spellID)) do
-			if o.explicitlyCollected then
-				app.CurrentCharacter.Spells[t.spellID] = 1;
-				ATTAccountWideData.Spells[t.spellID] = 1;
-				return 1;
-			end
-		end
-		
-		-- Unflag collection
-		if app.CurrentCharacter.Spells[t.spellID] == 1 then
-			app.CurrentCharacter.Spells[t.spellID] = nil;
-			ATTAccountWideData.Spells[t.spellID] = nil;
-			for guid,characterData in pairs(ATTCharacterData) do
-				if characterData.Spells and characterData.Spells[t.spellID] then
-					ATTAccountWideData.Spells[t.spellID] = 1;
-				end
-			end
-		end
-		if app.AccountWideMounts and ATTAccountWideData.Spells[t.spellID] then return 2; end
-	end,
-	["explicitlyCollected"] = function(t)
-		return IsSpellKnown(t.spellID) or (t.questID and IsQuestFlaggedCompleted(t.questID)) or (t.itemID and GetItemCount(t.itemID, true) > 0);
-	end,
-	["b"] = function(t)
-		return (t.parent and t.parent.b) or 1;
-	end,
-	["name"] = function(t)
-		return select(1, GetSpellInfo(t.spellID)) or RETRIEVING_DATA;
-	end,
-	["tsmForItem"] = function(t)
-		if t.itemID then return string.format("i:%d", t.itemID); end
-		if t.parent and t.parent.itemID then return string.format("i:%d", t.parent.itemID); end
-	end,
-	["linkForItem"] = function(t)
-		return select(2, GetItemInfo(t.itemID)) or select(1, GetSpellLink(t.spellID));
-	end,
-};
-app.BaseMount = app.BaseObjectFields(mountFields);
-
-local fields = RawCloneData(mountFields);
-fields.link = mountFields.linkForItem;
-fields.tsm = mountFields.tsmForItem;
-app.BaseMountWithItemID = app.BaseObjectFields(fields);
-app.CreateMount = function(id, t)
-	if t and rawget(t, "itemID") then
-		return setmetatable(constructor(id, t, "spellID"), app.BaseMountWithItemID);
-	else
-		return setmetatable(constructor(id, t, "spellID"), app.BaseMount);
-	end
-end
 end)();
 
 -- NPC Lib
@@ -7424,6 +7839,7 @@ local questFields = {
 		return "questID";
 	end,
 	["text"] = function(t)
+		if t.repeatable then return "|cff0070DD" .. t.name .. "|r"; end
 		return t.name;
 	end,
 	["name"] = function(t)
@@ -7470,7 +7886,7 @@ local questFields = {
 		return app.CollectibleQuests and ((not t.repeatable and not t.isBreadcrumb) or C_QuestLog.IsOnQuest(t.questID));
 	end,
 	["collected"] = function(t)
-		return IsQuestFlaggedCompletedForObject(t);
+		return not C_QuestLog.IsOnQuest(t.questID) and IsQuestFlaggedCompletedForObject(t);
 	end,
 	["trackable"] = function(t)
 		return true;
@@ -7505,6 +7921,9 @@ local questFields = {
 		return app.CollectibleQuests and ((not t.repeatable and not t.isBreadcrumb) or C_QuestLog.IsOnQuest(t.questID) or (t.maxReputation and (app.CollectibleReputations or not t.repeatable)));
 	end,
 	["collectedAsReputation"] = function(t)
+		if C_QuestLog.IsOnQuest(t.questID) then
+			return false;
+		end
 		if t.maxReputation then
 			if app.AccountWideReputations then
 				local faction = SearchForField("factionID", t.maxReputation[1]);
@@ -7551,6 +7970,23 @@ app.CreateQuestWithFactionData = function(t)
 		questData = t.aqd;
 		otherQuestData = t.hqd;
 		otherQuestData.r = Enum.FlightPathFaction.Horde;
+	end
+	
+	-- Move over the quest data's groups.
+	if questData.g then
+		if not t.g then
+			t.g = questData.g;
+		else
+			for _,o in ipairs(questData.g) do
+				tinsert(t.g, 1, o);
+			end
+		end
+		rawset(questData, "g", nil);
+	end
+	if otherQuestData.g then
+		for _,o in ipairs(otherQuestData.g) do
+			o.parent = otherQuestData;
+		end
 	end
 	
 	-- Apply this quest's current data into the other faction's quest. (this is for tooltip caching and source quest resolution)
@@ -7651,10 +8087,13 @@ local fields = {
 		if not t.questID then
 			return false;
 		end
-		return C_QuestLog.IsOnQuest(t.questID);
+		return app.CollectibleQuests and C_QuestLog.IsOnQuest(t.questID);
 	end,
 	["trackable"] = function(t)
-		return true;
+		if not t.questID then
+			return false;
+		end
+		return app.CollectibleQuests and C_QuestLog.IsOnQuest(t.questID);
 	end,
 	["collected"] = function(t)
 		-- If the parent is collected, return immediately.
@@ -11055,6 +11494,10 @@ function app:RefreshData(lazy, got, manual)
 			coroutine.yield();
 		end
 		
+		if app.RefreshAchievementCollection then
+			app.RefreshAchievementCollection();
+		end
+		
 		-- Send an Update to the Windows to Rebuild their Row Data
 		if app.refreshDataForce then
 			app.refreshDataForce = nil;
@@ -11217,6 +11660,58 @@ function app:GetWindow(suffix, parent, onUpdate)
 		window:Update(true);
 	end
 	return window;
+end
+function app:BuildFlatSearchFilteredResponse(groups, filter, t)
+	if groups then
+		for i,group in ipairs(groups) do
+			if filter(group) then
+				tinsert(t, CloneData(group));
+			elseif group.g then
+				app:BuildFlatSearchFilteredResponse(group.g, filter, t);
+			end
+		end
+	end
+end
+function app:BuildFlatSearchResponse(groups, field, value, t)
+	if groups then
+		for i,group in ipairs(groups) do
+			local v = group[field];
+			if v and (v == value or (field == "requireSkill" and app.SpellIDToSkillID[app.SpecializationSpellIDs[v] or 0] == value)) then
+				tinsert(t, CloneData(group));
+			elseif group.g then
+				app:BuildFlatSearchResponse(group.g, field, value, t);
+			end
+		end
+	end
+end
+function app:BuildFlatSearchResponseForField(groups, field, t)
+	if groups then
+		for i,group in ipairs(groups) do
+			if group[field] then
+				tinsert(t, CloneData(group));
+			elseif group.g then
+				app:BuildFlatSearchResponseForField(group.g, field, t);
+			end
+		end
+	end
+end
+function app:BuildSearchFilteredResponse(groups, filter)
+	if groups then
+		local t;
+		for i,group in ipairs(groups) do
+			if filter(group) then
+				if not t then t = {}; end
+				tinsert(t, CloneData(group));
+			elseif group.g then
+				local response = app:BuildSearchFilteredResponse(group.g, filter);
+				if response then
+					if not t then t = {}; end
+					tinsert(t, setmetatable({g=response}, { __index = group }));
+				end
+			end
+		end
+		return t;
+	end
 end
 function app:BuildSearchResponse(groups, field, value)
 	if groups then
@@ -15440,6 +15935,8 @@ app.events.ADDON_LOADED = function(addonName)
 				frame:Hide();
 			end
 		end);
+	elseif app.RefreshAchievementCollection and addonName == "Blizzard_AchievementUI" then
+		app.RefreshAchievementCollection();
 	end
 end
 app.events.CHAT_MSG_ADDON = function(prefix, text, channel, sender, target, zoneChannelID, localID, name, instanceID, ...)
