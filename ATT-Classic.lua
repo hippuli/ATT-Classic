@@ -2889,6 +2889,8 @@ fieldConverters = {
 					CacheField(group, "itemIDAsCost", v[2]);
 				elseif v[1] == "o" and v[2] > 0 then
 					cacheObjectID(group, v[2]);
+				elseif v[1] == "c" and v[2] > 0 then
+					CacheField(group, "currencyID", v[2]);
 				end
 			end
 		end
@@ -3746,8 +3748,14 @@ app.OpenMainList = OpenMainList;
 	local GameTooltip_SetCurrencyByID = GameTooltip.SetCurrencyByID;
 	GameTooltip.SetCurrencyByID = function(self, currencyID, count)
 		-- Make sure to call to base functionality
-		GameTooltip_SetCurrencyByID(self, currencyID, count);
-		
+		if GameTooltip_SetCurrencyByID then
+			GameTooltip_SetCurrencyByID(self, currencyID, count);
+		else
+			local results = SearchForField("currencyID", currencyID);
+			if results and #results > 0 then
+				GameTooltip:AddLine(results[1].text or RETRIEVING_DATA, 1, 1, 1);
+			end
+		end
 		if (not InCombatLockdown() or app.Settings:GetTooltipSetting("DisplayInCombat")) and app.Settings:GetTooltipSetting("Enabled") then
 			AttachTooltipSearchResults(self, 1, "currencyID:" .. currencyID, SearchForField, "currencyID", currencyID);
 			if app.Settings:GetTooltipSetting("currencyID") then self:AddDoubleLine(L["CURRENCY_ID"], tostring(currencyID)); end
@@ -3757,8 +3765,7 @@ app.OpenMainList = OpenMainList;
 	local GameTooltip_SetCurrencyToken = GameTooltip.SetCurrencyToken;
 	GameTooltip.SetCurrencyToken = function(self, tokenID)
 		-- Make sure to call to base functionality
-		GameTooltip_SetCurrencyToken(self, tokenID);
-		
+		if GameTooltip_SetCurrencyToken then GameTooltip_SetCurrencyToken(self, tokenID); end
 		if (not InCombatLockdown() or app.Settings:GetTooltipSetting("DisplayInCombat")) and app.Settings:GetTooltipSetting("Enabled") then
 			-- Determine what kind of list data this is. (Blizzard is whack and using this API call for headers too...)
 			local name, isHeader = GetCurrencyListInfo(tokenID);
@@ -3770,6 +3777,12 @@ app.OpenMainList = OpenMainList;
 					for currencyID, _ in pairs(cache) do
 						-- Compare the name of the currency vs the name of the token
 						if select(1, GetCurrencyInfo(currencyID)) == name then
+							if not GameTooltip_SetCurrencyToken then
+								local results = SearchForField("currencyID", currencyID);
+								if results and #results > 0 then
+									GameTooltip:AddLine(results[1].text or RETRIEVING_DATA, 1, 1, 1);
+								end
+							end
 							AttachTooltipSearchResults(self, 1, "currencyID:" .. currencyID, SearchForField, "currencyID", currencyID);
 							if app.Settings:GetTooltipSetting("currencyID") then self:AddDoubleLine(L["CURRENCY_ID"], tostring(currencyID)); end
 							self:Show();
@@ -3795,10 +3808,11 @@ end
 
 -- Achievement Lib
 (function()
-local SetAchievementCollected = function(achievementID, collected)
+local SetAchievementCollected = function(achievementID, collected, refresh)
 	if collected then
 		app.CurrentCharacter.Achievements[achievementID] = 1;
 		ATTAccountWideData.Achievements[achievementID] = 1;
+		if refresh then app:RefreshData(false, true); end
 	elseif app.CurrentCharacter.Achievements[achievementID] then
 		app.CurrentCharacter.Achievements[achievementID] = nil;
 		ATTAccountWideData.Achievements[achievementID] = nil;
@@ -3808,6 +3822,7 @@ local SetAchievementCollected = function(achievementID, collected)
 				break;
 			end
 		end
+		if refresh then app:RefreshData(false, true); end
 	end
 end
 local fields = {
@@ -3831,91 +3846,231 @@ local categoryFields = {
 		return app.asset("Category_Achievements");
 	end,
 };
-local criteriaFields = {
-	["key"] = function(t)
-		return "criteriaID";
-	end,
-	["achievementID"] = function(t)
-		return t.parent.achievementID;
-	end,
-	["index"] = function(t)
-		return 1;
-	end,
-	["collectible"] = function(t)
-		return t.parent.collectible;
-	end,
-	["trackable"] = function(t)
-		return true;
-	end,
-};
-
+local useAchievementAPI = false;
 if GetCategoryInfo and GetCategoryInfo(92) ~= "" then
 	-- Achievements are in. We can use the API.
+	useAchievementAPI = true;
 	fields.text = function(t)
-		return t.link or RETRIEVING_DATA;
+		return t.link or "|cffffff00[" .. (t.name or ("@CRIEVE: INVALID ACHIEVEMENT " .. t.achievementID)) .. "]|r";
 	end
 	fields.name = function(t)
-		return select(2, GetAchievementInfo(t.achievementID));
+		local name = select(2, GetAchievementInfo(t.achievementID));
+		if name then return name; end
+		local data = L.ACHIEVEMENT_DATA[t.achievementID];
+		if data and data[2] then return data[2]; end
+		if t.providers then
+			for k,v in ipairs(t.providers) do
+				if v[2] > 0 then
+					if v[1] == "o" then
+						return app.ObjectNames[v[2]];
+					elseif v[1] == "i" then
+						return select(1, GetItemInfo(v[2]));
+					end
+				end
+			end
+		end
+		if t.spellID then return select(1, GetSpellInfo(t.spellID)); end
 	end
 	fields.link = function(t)
 		return GetAchievementLink(t.achievementID);
 	end
 	fields.icon = function(t)
-		return select(10, GetAchievementInfo(t.achievementID));
+		local name = select(10, GetAchievementInfo(t.achievementID));
+		if name then return name; end
+		local data = L.ACHIEVEMENT_DATA[t.achievementID];
+		if data and data[3] then return data[3]; end
+		if t.providers then
+			for k,v in ipairs(t.providers) do
+				if v[2] > 0 then
+					if v[1] == "o" then
+						return app.ObjectIcons[v[2]] or "Interface\\Worldmap\\Gear_64Grey";
+					elseif v[1] == "i" then
+						return select(5, GetItemInfoInstant(v[2])) or "Interface\\Worldmap\\Gear_64Grey";
+					end
+				end
+			end
+		end
+		if t.spellID then return select(3, GetSpellInfo(t.spellID)); end
+		return t.parent.icon or "Interface\\Worldmap\\Gear_64Grey";
 	end
 	fields.parentCategoryID = function(t)
-		return GetAchievementCategory(t.achievementID) or -1;
+		local data = GetAchievementCategory(t.achievementID);
+		if data then return data; end
+		data = L.ACHIEVEMENT_DATA[t.achievementID];
+		if data then return data[1]; end
+		return -1;
 	end
 	fields.SetAchievementCollected = function(t)
-		print("Attempted to retrieve the function SetAchievementCollected from the Achievement object. (no longer available)");
-		return function(achievementID, collected)
-			print("Attempted to set achievement " .. achievementID .. " as collected: " .. (collected and 1 or 0));
+		if t.achievementID == 5788 or t.achievementID == 6059 then
+			return SetAchievementCollected;
+		else
+			print("Attempted to retrieve the function SetAchievementCollected from the Achievement object. (no longer available)");
+			return function(achievementID, collected)
+				print("Attempted to set achievement " .. achievementID .. " as collected: " .. (collected and 1 or 0));
+			end
 		end
+	end
+	local onTooltipForAchievement = function(t)
+		local achievementID = t.achievementID;
+		if achievementID then
+			local totalCriteria = GetAchievementNumCriteria(achievementID) or 0;
+			GameTooltip:AddLine(" ", 1, 1, 1);
+			GameTooltip:AddDoubleLine("Total Criteria", tostring(totalCriteria), 0.8, 0.8, 1);
+			if totalCriteria > 0 then
+				for criteriaIndex=1,totalCriteria,1 do
+					local criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, criteriaID = GetAchievementCriteriaInfo(achievementID, criteriaIndex);
+					GameTooltip:AddDoubleLine(" " .. criteriaIndex .. ": [" .. criteriaID .. "]: " .. tostring(criteriaString) .. " (" .. tostring(criteriaType) .. " - " .. tostring(assetID) ..")", tostring(quantityString) .. " " .. (completed and 1 or 0), 1, 1, 1, 1, 1, 1);
+				end
+			end
+		end
+	end
+	local onTooltipForAchievementCriteria = function(t)
+		local achievementID = t.achievementID;
+		if achievementID then
+			local totalCriteria = GetAchievementNumCriteria(achievementID) or 0;
+			GameTooltip:AddLine(" ", 1, 1, 1);
+			GameTooltip:AddDoubleLine("Total Criteria", tostring(totalCriteria), 0.8, 0.8, 1);
+			if totalCriteria > 0 then
+				local criteriaIndex = t.criteriaID;
+				if criteriaIndex then
+					local criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, criteriaID;
+					if criteriaIndex <= totalCriteria then
+						criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, criteriaID =GetAchievementCriteriaInfo(achievementID, criteriaIndex);
+					else
+						criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, criteriaID =GetAchievementCriteriaInfoByID(achievementID, criteriaIndex);
+					end
+					GameTooltip:AddDoubleLine(" [" .. criteriaID .. "]: " .. tostring(criteriaString) .. " (" .. tostring(criteriaType) .. " - " .. tostring(assetID) ..")", tostring(quantityString) .. " " .. (completed and 1 or 0), 1, 1, 1, 1, 1, 1);
+				end
+			end
+		end
+	end
+	fields.OnTooltip = function(t)
+		return onTooltipForAchievement;
 	end
 	categoryFields.text = function(t)
-		return GetCategoryInfo(t.achievementCategoryID);
+		local data = GetCategoryInfo(t.achievementCategoryID);
+		if data then return data; end
+		data = L.ACHIEVEMENT_CRITERIA_DATA[t.achievementCategoryID];
+		if data then return data[2]; end
+		return RETRIEVING_DATA .. " achcat:" .. t.achievementCategoryID;
 	end
 	categoryFields.parentCategoryID = function(t)
-		return select(2, GetCategoryInfo(t.achievementCategoryID)) or -1;
-	end
-	criteriaFields.collected = function(t)
-		-- If the parent is collected, return immediately.
-		local collected = t.parent.collected;
-		if collected then return collected; end
-		
-		-- Check to see if the criteria was completed.
-		local achievementID = t.achievementID;
-		if achievementID then
-			if app.CurrentCharacter.Achievements[achievementID] then return true; end
-			if t.criteriaID and t.criteriaID <= (GetAchievementNumCriteria(achievementID) or -1) then
-				return select(3, GetAchievementCriteriaInfo(achievementID, t.criteriaID, true));
-			end
-		end
-	end
-	criteriaFields.saved = function(t)
-		-- If the parent is saved, return immediately.
-		local saved = t.parent.saved;
-		if saved then return saved; end
-		
-		-- Check to see if the criteria was completed.
-		local achievementID = t.achievementID;
-		if achievementID then
-			if app.CurrentCharacter.Achievements[achievementID] then return true; end
-			if t.criteriaID and t.criteriaID <= (GetAchievementNumCriteria(achievementID) or -1) then
-				return select(3, GetAchievementCriteriaInfo(achievementID, t.criteriaID, true));
-			end
-		end
+		local data = select(2, GetCategoryInfo(t.achievementCategoryID));
+		if data then return data; end
+		data = L.ACHIEVEMENT_CRITERIA_DATA[t.achievementCategoryID];
+		if data then return data[1]; end
+		return -1;
 	end
 	app.CreateAchievement = function(id, t)
 		return setmetatable(constructor(id, t, "achievementID"), app.BaseAchievement);
 	end
+	
+	local onClickForCriteria = function(row, button)
+		if button == "RightButton" then
+			app.CreateMiniListForGroup(app.CreateAchievement(row.ref.achievementID));
+			return true;
+		end
+	end;
+	app.BaseAchievementCriteria = app.BaseObjectFields({
+		["key"] = function(t)
+			return "criteriaID";
+		end,
+		["achievementID"] = function(t)
+			return t.achID or t.parent.achievementID;
+		end,
+		["index"] = function(t)
+			return 1;
+		end,
+		["collectible"] = function(t)
+			return app.CollectibleAchievements;
+		end,
+		["trackable"] = function(t)
+			return true;
+		end,
+		["text"] = function(t)
+			return "|cffffff00[Criteria: " .. (t.name or RETRIEVING_DATA) .. "]|r";
+		end,
+		["name"] = function(t)
+			local achievementID = t.achievementID;
+			if achievementID then
+				local criteriaID = t.criteriaID;
+				if criteriaID then
+					if criteriaID <= GetAchievementNumCriteria(achievementID) then
+						return GetAchievementCriteriaInfo(achievementID, criteriaID);
+					else
+						return GetAchievementCriteriaInfoByID(achievementID, criteriaID);
+					end
+				end
+			end
+		end,
+		["icon"] = function(t)
+			local achievementID = t.achievementID;
+			if achievementID then
+				return select(10, GetAchievementInfo(achievementID));
+			end
+		end,
+		["description"] = function(t)
+			local achievementID = t.achievementID;
+			if achievementID then
+				return "Criteria for |cffffff00[" .. (select(2, GetAchievementInfo(achievementID)) or RETRIEVING_DATA) .. "]|r";
+			end
+		end,
+		["collected"] = function(t)
+			if t.parent.achievementID then
+				-- If the parent is collected, return immediately.
+				local collected = t.parent.collected;
+				if collected then return collected; end
+			end
+			
+			-- Check to see if the criteria was completed.
+			local achievementID = t.achievementID;
+			if achievementID then
+				if app.CurrentCharacter.Achievements[achievementID] then return true; end
+				local criteriaID = t.criteriaID;
+				if criteriaID then
+					if criteriaID <= GetAchievementNumCriteria(achievementID) then
+						return select(3, GetAchievementCriteriaInfo(achievementID, criteriaID));
+					else
+						return select(3, GetAchievementCriteriaInfoByID(achievementID, criteriaID));
+					end
+				end
+			end
+		end,
+		["saved"] = function(t)
+			if t.parent.achievementID then
+				-- If the parent is saved, return immediately.
+				local saved = t.parent.saved;
+				if saved then return saved; end
+			end
+			
+			-- Check to see if the criteria was completed.
+			local achievementID = t.achievementID;
+			if achievementID then
+				if app.CurrentCharacter.Achievements[achievementID] then return true; end
+				local criteriaID = t.criteriaID;
+				if criteriaID then
+					if criteriaID <= GetAchievementNumCriteria(achievementID) then
+						return select(3, GetAchievementCriteriaInfo(achievementID, criteriaID));
+					else
+						return select(3, GetAchievementCriteriaInfoByID(achievementID, criteriaID));
+					end
+				end
+			end
+		end,
+		["OnClick"] = function()
+			return onClickForCriteria;
+		end,
+		["OnTooltip"] = function()
+			return onTooltipForAchievementCriteria;
+		end,
+	});
 	app.CreateAchievementCriteria = function(id, t)
 		return setmetatable(constructor(id, t, "criteriaID"), app.BaseAchievementCriteria);
 	end
 	
 	local function CheckAchievementCollectionStatus(achievementID)
 		achievementID = tonumber(achievementID);
-		SetAchievementCollected(achievementID, select(13, GetAchievementInfo(achievementID)));
+		SetAchievementCollected(achievementID, select(13, GetAchievementInfo(achievementID)), true);
 	end
 	app.RefreshAchievementCollection = function()
 		if ATTAccountWideData then
@@ -3995,16 +4150,6 @@ else
 		if data then return data[1]; end
 		return -1;
 	end
-	criteriaFields.collected = function(t)
-		-- If the parent is collected, return immediately.
-		local collected = t.parent.collected;
-		if collected then return collected; end
-	end
-	criteriaFields.saved = function(t)
-		-- If the parent is saved, return immediately.
-		local saved = t.parent.saved;
-		if saved then return saved; end
-	end
 	
 	local fieldsWithSpellID = RawCloneData(fields);
 	fieldsWithSpellID.OnUpdate = fields.OnUpdateForSpellID;
@@ -4026,6 +4171,7 @@ app.CreateAchievementCategory = function(id, t)
 end
 app.CommonAchievementHandlers = {
 ["ALL_ITEM_COSTS"] = function(t)
+	if useAchievementAPI then return; end
 	local collected = true;
 	for i,provider in ipairs(t.cost) do
 		if provider[1] == "i" and GetItemCount(provider[2], true) == 0 then
@@ -4036,6 +4182,7 @@ app.CommonAchievementHandlers = {
 	t.SetAchievementCollected(t.achievementID, collected);
 end,
 ["ANY_ITEM_COST"] = function(t)
+	if useAchievementAPI then return; end
 	local collected = false;
 	for i,provider in ipairs(t.cost) do
 		if provider[1] == "i" and GetItemCount(provider[2], true) > 0 then
@@ -4046,6 +4193,7 @@ end,
 	t.SetAchievementCollected(t.achievementID, collected);
 end,
 ["ALL_ITEM_PROVIDERS"] = function(t)
+	if useAchievementAPI then return; end
 	local collected = true;
 	for i,provider in ipairs(t.providers) do
 		if provider[1] == "i" and GetItemCount(provider[2], true) == 0 then
@@ -4056,6 +4204,7 @@ end,
 	t.SetAchievementCollected(t.achievementID, collected);
 end,
 ["ANY_ITEM_PROVIDER"] = function(t)
+	if useAchievementAPI then return; end
 	local collected = false;
 	for i,provider in ipairs(t.providers) do
 		if provider[1] == "i" and GetItemCount(provider[2], true) > 0 then
@@ -4066,6 +4215,7 @@ end,
 	t.SetAchievementCollected(t.achievementID, collected);
 end,
 ["ALL_SOURCE_QUESTS"] = function(t)
+	if useAchievementAPI then return; end
 	local collected = true;
 	for i,questID in ipairs(t.sourceQuests) do
 		if not C_QuestLog.IsQuestFlaggedCompleted(questID) then
@@ -4076,6 +4226,7 @@ end,
 	t.SetAchievementCollected(t.achievementID, collected);
 end,
 ["ANY_SOURCE_QUEST"] = function(t)
+	if useAchievementAPI then return; end
 	local collected = false;
 	for i,questID in ipairs(t.sourceQuests) do
 		if C_QuestLog.IsQuestFlaggedCompleted(questID) then
@@ -4101,6 +4252,7 @@ end,
 				return true;
 			end
 		end
+		if useAchievementAPI then return; end
 		local collected = true;
 		for i,o in ipairs(t.areas) do
 			if o.collected ~= 1 and app.FilterItemClass_UnobtainableItem(o) then
@@ -4119,7 +4271,7 @@ end,
 		return true;
 	end
 end,
-["EXALTED_REP_OnUpdate"] = function(t, factionID)
+["EXALTED_REP_OnUpdate"] = function(t, factionID, override)
 	if t.collectible then
 		if not t.rep then
 			local f = app.SearchForField("factionID", factionID);
@@ -4140,6 +4292,7 @@ end,
 				return true;
 			end
 		end
+		if useAchievementAPI and not override then return; end
 		t.SetAchievementCollected(t.achievementID, t.rep.standing == 8);
 	end
 end,
@@ -4172,6 +4325,7 @@ end,
 			if #reps < 1 then return true; end
 			t.reps = reps;
 		end
+		if useAchievementAPI then return; end
 		local collected = true;
 		for i,faction in ipairs(t.reps) do
 			if faction.standing < 8 then
@@ -4197,6 +4351,7 @@ end,
 			if #reps < 1 then return true; end
 			t.reps = reps;
 		end
+		if useAchievementAPI then return; end
 		local collected = false;
 		for i,faction in ipairs(t.reps) do
 			if faction.standing < 8 then
@@ -4326,11 +4481,17 @@ end,
 				return true;
 			end
 			
+			-- Clone the list to prevent dirtying the quest list in the zone.
+			quests = RawCloneArray(quests);
+			for i=#quests,1,-1 do
+				if quests[i].repeatable then
+					table.remove(quests, i);
+				end
+			end
+			
 			-- If additional questIDs were manually included, let's do some extra work.
 			local extraQuestIDs = { ... };
 			if #extraQuestIDs > 0 then
-				-- Clone the list to prevent dirtying the quest list in the zone.
-				quests = RawCloneArray(quests);
 				for i,questID in ipairs(extraQuestIDs) do
 					local results = SearchForField("questID", questID);
 					if results and #results > 0 then
@@ -4356,6 +4517,7 @@ end,
 		end
 		t.p = p;
 		t.quests = quests;
+		if useAchievementAPI then return; end
 		t.SetAchievementCollected(t.achievementID, p >= t.rank);
 	else
 		return true;
@@ -4398,6 +4560,7 @@ end,
 			if #achievements < 1 then return true; end
 			t.achievements = achievements;
 		end
+		if useAchievementAPI then return; end
 		local collected = true;
 		for i,faction in ipairs(t.achievements) do
 			if not faction.collected then
@@ -4421,6 +4584,7 @@ end,
 			if not achievements then return true; end
 			t.achievements = achievements;
 		end
+		if useAchievementAPI then return; end
 		local collected = true;
 		for i,faction in ipairs(t.achievements) do
 			if not faction.collected and app.FilterItemClass_UnobtainableItem(faction) then
@@ -5460,26 +5624,38 @@ else
 	if GetCompanionInfo then
 		local CollectedBattlePetHelper = {};
 		local CollectedMountHelper = {};
-		local function RefreshCompanionCollectionStatus()
-			setmetatable(CollectedBattlePetHelper, nil);
-			setmetatable(CollectedMountHelper, nil);
-			wipe(CollectedBattlePetHelper);
-			for i=GetNumCompanions("CRITTER"),1,-1 do
-				local spellID = select(3, GetCompanionInfo("CRITTER", i));
-				if spellID then
-					CollectedBattlePetHelper[spellID] = true;
-				else
-					print("Failed to get Companion Info for Critter ".. i);
+		local function RefreshCompanionCollectionStatus(companionType)
+			local anythingNew = false;
+			if not companionType or companionType == "CRITTER" then
+				setmetatable(CollectedBattlePetHelper, nil);
+				for i=GetNumCompanions("CRITTER"),1,-1 do
+					local spellID = select(3, GetCompanionInfo("CRITTER", i));
+					if spellID then
+						if not CollectedBattlePetHelper[spellID] then
+							CollectedBattlePetHelper[spellID] = true;
+							anythingNew = true;
+						end
+					else
+						print("Failed to get Companion Info for Critter ".. i);
+					end
 				end
 			end
-			wipe(CollectedMountHelper);
-			for i=GetNumCompanions("MOUNT"),1,-1 do
-				local spellID = select(3, GetCompanionInfo("MOUNT", i));
-				if spellID then
-					CollectedMountHelper[spellID] = true;
-				else
-					print("Failed to get Companion Info for Mount ".. i);
+			if not companionType or companionType == "MOUNT" then
+				setmetatable(CollectedMountHelper, nil);
+				for i=GetNumCompanions("MOUNT"),1,-1 do
+					local spellID = select(3, GetCompanionInfo("MOUNT", i));
+					if spellID then
+						if not CollectedMountHelper[spellID] then
+							CollectedMountHelper[spellID] = true;
+							anythingNew = true;
+						end
+					else
+						print("Failed to get Companion Info for Mount ".. i);
+					end
 				end
+			end
+			if anythingNew then
+				app:RefreshData(true, true);
 			end
 		end
 		local meta = { __index = function(t, spellID)
@@ -5489,10 +5665,10 @@ else
 		setmetatable(CollectedBattlePetHelper, meta);
 		setmetatable(CollectedMountHelper, meta);
 		speciesFields.collected = function(t)
-			return SetBattlePetCollected(t.speciesID, (t.spellID and CollectedBattlePetHelper[t.spellID]) or (t.itemID and GetItemCount(t.itemID, true) > 0));
+			return SetBattlePetCollected(t.speciesID, (t.spellID and CollectedBattlePetHelper[t.spellID]));
 		end
 		mountFields.collected = function(t)
-			return SetMountCollected(t.spellID, (t.spellID and CollectedMountHelper[t.spellID]) or (t.itemID and GetItemCount(t.itemID, true) > 0));
+			return SetMountCollected(t.spellID, (t.spellID and CollectedMountHelper[t.spellID]));
 		end
 		app:RegisterEvent("COMPANION_LEARNED");
 		app:RegisterEvent("COMPANION_UNLEARNED");
@@ -5806,8 +5982,17 @@ if EJ_GetEncounterInfo then
 	end
 else
 	app.CreateEncounter = function(id, t)
-		-- Do nothing, not supported yet.
-		return nil;
+		local npcID = t.creatureID or (t.crs and t.crs[1]) or t.npcID or (t.qgs and t.qgs[1]);
+		if npcID then
+			t = app.CreateNPC(npcID, t);
+			t.encounterID = id;
+			return t;
+		else
+			t = constructor(id, t, "encounterID");
+			t.text = "INVALID ENCOUNTER " .. id;
+			print(t.text);
+			return t;
+		end
 	end
 end
 end)();
@@ -6094,19 +6279,22 @@ app.CacheFlightPathDataForMap = function(mapID, nodes)
 	if count > 0 then
 		if count > 1 then
 			count = 0;
-			local pos = C_Map.GetPlayerMapPosition(app.CurrentMapID, "player");
-			if pos then
-				local px, py = pos:GetXY();
-				px = px * 100;
-				py = py * 100;
-				
-				-- Select the best flight path node.
-				for nodeID,node in pairs(temp) do
-					local coord = node.coords and node.coords[1];
-					if coord then
-						-- Allow for a little bit of leeway.
-						if math.sqrt((coord[1] - px)^2 + (coord[2] - py)^2) < 0.6 then
-							nodes[nodeID] = true;
+			local mapID = app.CurrentMapID;
+			if mapID then
+				local pos = C_Map.GetPlayerMapPosition(mapID, "player");
+				if pos then
+					local px, py = pos:GetXY();
+					px = px * 100;
+					py = py * 100;
+					
+					-- Select the best flight path node.
+					for nodeID,node in pairs(temp) do
+						local coord = node.coords and node.coords[1];
+						if coord then
+							-- Allow for a little bit of leeway.
+							if math.sqrt((coord[1] - px)^2 + (coord[2] - py)^2) < 0.6 then
+								nodes[nodeID] = true;
+							end
 						end
 					end
 				end
@@ -7412,8 +7600,12 @@ app.events.MAP_EXPLORATION_UPDATED = function(...)
 	app.CurrentMapID = app.GetCurrentMapID();
 	StartCoroutine("RefreshExploration", function()
 		coroutine.yield();
-		
-		local pos = C_Map.GetPlayerMapPosition(app.CurrentMapID, "player");
+		local mapID = app.CurrentMapID;
+		while not mapID do
+			coroutine.yield();
+			mapID = app.CurrentMapID;
+		end
+		local pos = C_Map.GetPlayerMapPosition(mapID, "player");
 		if pos then
 			local x, y = pos:GetXY();
 			local explored = C_MapExplorationInfo_GetExploredAreaIDsAtPosition(app.CurrentMapID, pos);
@@ -11481,9 +11673,11 @@ function app:GetDataCache()
 	return allData;
 end
 function app:RefreshData(lazy, got, manual)
-	--print("RefreshData(" .. tostring(lazy or false) .. ", " .. tostring(got or false) .. ")");
 	app.refreshDataForce = app.refreshDataForce or not lazy;
 	app.countdown = manual and 0 or 30;
+	if app.refreshingData then return; end
+	app.refreshingData = true;
+	--print("RefreshData(" .. tostring(lazy or false) .. ", " .. tostring(got or false) .. ")");
 	StartCoroutine("RefreshData", function()
 		-- While the player is in combat, wait for combat to end.
 		while InCombatLockdown() do coroutine.yield(); end
@@ -11523,6 +11717,7 @@ function app:RefreshData(lazy, got, manual)
 			app.lastMsg = msg;
 		end
 		wipe(searchCache);
+		app.refreshingData = nil;
 	end);
 end
 function app:GetWindow(suffix, parent, onUpdate)
@@ -12815,9 +13010,12 @@ app:GetWindow("CurrentInstance", UIParent, function(self, force, got)
 		app.RefreshLocation = RefreshLocation;
 		self:SetScript("OnEvent", function(self, e, ...)
 			RefreshLocation();
+			UpdateWindow(self, true, e == "QUEST_WATCH_UPDATE" or e == "CRITERIA_UPDATE");
 		end);
 		self:RegisterEvent("ZONE_CHANGED");
 		self:RegisterEvent("ZONE_CHANGED_NEW_AREA");
+		self:RegisterEvent("QUEST_WATCH_UPDATE");
+		self:RegisterEvent("CRITERIA_UPDATE");
 	end
 	if self:IsVisible() then
 		-- Update the window and all of its row data
@@ -13034,7 +13232,7 @@ app:GetWindow("ItemFinder", UIParent, function(self, ...)
 					end
 					for count=#g,100 do
 						local i = db.currentItemID - 1;
-						if i > 0 then
+						if i > db.minimumItemID then
 							db.currentItemID = i;
 							local t = app.CreateItemHarvester(i);
 							t.parent = db;
@@ -13054,7 +13252,8 @@ app:GetWindow("ItemFinder", UIParent, function(self, ...)
 			db.progress = 0;
 			db.total = 0;
 			db.back = 1;
-			db.currentItemID = 40001;
+			db.currentItemID = 60000;
+			db.minimumItemID = 60000;
 			self.data = db;
 		end
 		self.data.progress = 0;

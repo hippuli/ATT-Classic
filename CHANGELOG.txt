@@ -1,41 +1,11 @@
-0.9.9 Release Notes
+1.0.2 Release Notes
 Contributions made by Crieve:
-* Replaced an explicit removed from game tag with a timeline.
-* Updated Tier 0.5 Sets class quests to use AQD / HQD in order to simplify calculating Loremaster achievements for Classic due to how they cross complete but don't count toward the achievement if they don't match your faction. (not finished yet)
-* All of the Tier 0.5 Set quests now make proper use of AQD/HQD where possible.
-* Holy Diadem might not exist in TBC.
-* Adjusted the Pendant of Myzrael. It's NOT a yearly quest anymore?
-* Dargol's Hauberk, Cranial Thumper, Flesh Carver, and Holy Diadem confirmed by Dejamoo - Razorfen (EU). I'm still looking for a US player to confirm these drops. Holy Diadem confirmed by Tozen - Atiesh (US). After Wrath the Black Dragon Sinew actually becomes a quest item you can loot from dragons in the Burning Steppes.
-* Added timeline data for Hillsbrad and Alterac Rares/Zone Drops. (zones not complete yet)
-* Added timeline data to STV Rares / Zone Drops.
-* Galen's Fall, Arathi now has a timeline.
-* Added the Loremaster achievements for EK and Kalimdor.
-* Slightly updated conditional format for Alterac Mountains and Hillsbrad Foothills.
-* Updated Alterac Mountains.
-* Updates to Hillsbrad Foothills. Alterac Mountains now resides on the Retail DB.
-* Added a parser for Wrath Classic.
-* Learn to Ride in Tirisfal Glades is actually Horde Only.
-* Fixed some Goblin/Gnomish Engineering Craftables.
-* Found some more.
-* Insane in the Membrane changed to not manually calculate completion for Wrath. (it is known!)
-* EncounterID isn't available until 4.2.0.
-* Updated the Flight Path DB to include some new wrath era flight paths.
-* Updated the Achievement, Mount, and Battle Pet Libs to properly update based on the availability or lack thereof of an API.
-* Adjusting Avalanchion to how he's suppose to appear with a proper explicit timeline for affected RWPs.
-* Objectives will no longer show up when using "Show Incomplete Things" when you aren't on the associated quest. Repeatable quests now appear in the list as blue text.
-* Quests in your log will now display as incomplete regardless of completed state.
-* Updated the Undercity and associated quests. Added the Incubus quest chains.
-* The Undercity now resides on the Retail Database.
-* Added Stars of Elune / Returning Home for Night Elf Priests.
-* Added the Undead Priest Class Quest for Devouring Plague. Updated the Human / Dwarf Priest Class Quest for Desperate Prayer.
-* Added Elune's Grace for Night Elf Priests. Added Shadowguard for Troll Priests.
-* Updated Arcane Feedback for Human Priests.
-* Updated Hillsbrad Foothills with timeline data and moved it over to the Retail Database.
-* Added a log file for CRIEVE flagged parser builds when they encounter a syntax error.
-* Updated Stranglethorn Vale.
-* Stranglethorn Vale now resides on the Retail DB.
-* Stormwind City updates. (incomplete)
-* ...
-* Rise of the Silithid has some new quest rewards.
-* Fixed the blacksmithing recipes in Shatt?
+* King of Dire Maul achievement updated for Wrath Classic.
+* Added missing timeline data to items in dalaran, which was causing lag when picking up quests in Wrath Classic.
+* Fixed a bit of quest lag.
+* Added Wrath of the Lich King era crafted items. Added Inscription.
+* Added High-powered Flashlight to Engineering.
+* Battle Pets fixed! Rejoice!
+* Ulduar, ICC, and Halls of Lightning data files no longer crash Wrath Classic.
+* Fixed a bug with the refresh data function.
 
