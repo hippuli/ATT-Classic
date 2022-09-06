@@ -1,9 +1,14 @@
-1.0.4 Release Notes
+1.0.6 Release Notes
 Contributions made by Crieve:
-* Fixed some additional lag caused by the CRITERIA_UPDATE event which fires waaay more offen than it should.
-* Battle Pet names now retry to resolve themselves.
-* Soothing Spices actually get removed in Wrath.
-* Updated Burning Crusade World Drops and moved them over to the Retail DB for future updates.
-* The mini list slider no longer kills the game's framerate.
-* Updated Wrath of the Lich King World Drops to work with a batch folder.
+* Updated Drak'Tharon Keep for Wrath Classic.
+* Updated Gundrak for Wrath Classic.
+* Updated Halls of Lightning for Wrath Classic.
+* Updated the Halls of Reflection for Wrath Classic.
+* Updated Naxxramas 10-Player  for Wrath Classic.
+* Updated Naxxramas for Wrath Classic.
+* Removed some silly nested tier pieces from tier tokens in Dalaran.
+* Updates to Achievements in order to provide Wrath Phase 1 filtering for folks working on achievements during Prepatch.
+* Added the Glory of the Icecrown Raider achievements.
+* Added the What a Long, Strange Trip It's Been achievement.
+* Swapped several custom npc IDs over to filters and categories, which are the preferred object type for headers where possible. Added a section for Wrath PVP.
 
