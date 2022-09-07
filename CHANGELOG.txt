@@ -1,14 +1,16 @@
-1.0.6 Release Notes
+1.0.7 Release Notes
 Contributions made by Crieve:
-* Updated Drak'Tharon Keep for Wrath Classic.
-* Updated Gundrak for Wrath Classic.
-* Updated Halls of Lightning for Wrath Classic.
-* Updated the Halls of Reflection for Wrath Classic.
-* Updated Naxxramas 10-Player  for Wrath Classic.
-* Updated Naxxramas for Wrath Classic.
-* Removed some silly nested tier pieces from tier tokens in Dalaran.
-* Updates to Achievements in order to provide Wrath Phase 1 filtering for folks working on achievements during Prepatch.
-* Added the Glory of the Icecrown Raider achievements.
-* Added the What a Long, Strange Trip It's Been achievement.
-* Swapped several custom npc IDs over to filters and categories, which are the preferred object type for headers where possible. Added a section for Wrath PVP.
+* Added support for lockCriteria. Removed explicit retail database references.
+* Added the Outland Angler achievement criterias.
+* Added achievement criteria for The Scavenger.
+* Added I Smell A Giant Rat to Northrend Dalaran. Moved all of the dalaran fishing achievements to Dalaran.
+* Added the Learn to Ride quests for all classes.
+* Updated Brewfest achievement criteria to use the correct criteriaID for Wrath Classic.
+* Updated Hallow's End achievement criteria to use the correct criteriaID for Wrath Classic.
+* Swapped over Hallow's End achievements over to using a symlink.
+* Slight adjustment to the achievement_criteria symlink.
+* Fixed the removed from game tag for a few Engineering schematics in Orgrimmar.
+* Fixed some bugs caused by someone adding a constant to only the Retail DB. :)
+* Wrath PVP Season Rewards in progress.
+* Updated Wrath and TBC PvP Season Sections to include their associated mount and title in a Rewards section for Wrath Classic.
 
