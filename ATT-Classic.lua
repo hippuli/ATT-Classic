@@ -5645,7 +5645,7 @@ else
 		return "Interface\\Icons\\INV_Misc_QuestionMark";
 	end
 	speciesFields.name = function(t)
-		return select(1, GetItemInfo(t.itemID));
+		return t.itemID and select(1, GetItemInfo(t.itemID)) or RETRIEVING_DATA;
 	end
 	mountFields.name = function(t)
 		return select(1, GetSpellInfo(t.spellID)) or RETRIEVING_DATA;
@@ -10996,6 +10996,17 @@ function app:GetDataCache()
 			db.g = app.Categories.Professions;
 			table.insert(g, db);
 		end
+
+		-- In-Game Store
+		if app.Categories.InGameShop then
+			db = {};
+			db.expanded = false;
+			db.text = BATTLE_PET_SOURCE_10;
+			db.icon = app.asset("Category_InGameShop");
+			db.description = "This section will show you things that you could buy in the In-Game Shop in Retail.";
+			db.g = app.Categories.InGameShop;
+			table.insert(g, db);
+		end
 		
 		-- Skills
 		if app.Categories.Skills then
@@ -11586,6 +11597,44 @@ function app:GetDataCache()
 					achievement.parent = getAchievementCategory(categories, achievement.parentCategoryID);
 					if not achievement.u or achievement.u ~= 1 then
 						tinsert(achievement.parent.g, achievement);
+					end
+				end
+			end
+			if GetCategoryList then
+				local unsortedData = app:GetWindow("Unsorted").data;
+				for _,categoryID in ipairs(GetCategoryList()) do
+					local numAchievements = GetCategoryNumAchievements(categoryID);
+					if numAchievements > 0 then
+						for i=1,numAchievements,1 do
+							local achievementID, name = GetAchievementInfo(categoryID, i);
+							if achievementID and not self.achievements[achievementID] then
+								local achievement = app.CreateAchievement(achievementID);
+								self.achievements[i] = achievement;
+								achievement.parent = getAchievementCategory(categories, achievement.parentCategoryID);
+								achievement.description = "@CRIEVE: This achievement has not been sourced yet.";
+								if not achievement.u or achievement.u ~= 1 then
+									tinsert(achievement.parent.g, achievement);
+								end
+								tinsert(unsortedData, achievement);
+								local numCriteria = GetAchievementNumCriteria(achievementID);
+								if numCriteria > 0 then
+									local g = {};
+									for j=1,numCriteria,1 do
+										local criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, criteriaID = GetAchievementCriteriaInfo(achievementID, j);
+										local criteriaObject = app.CreateAchievementCriteria(criteriaID);
+										criteriaObject.parent = achievement;
+										table.insert(g, criteriaObject);
+									end
+									achievement.g = g;
+								end
+								CacheFields(achievement);
+								
+								-- Put a copy in Unsorted.
+								achievement = app.CreateAchievement(achievementID);
+								achievement.parent = unsortedData;
+								tinsert(unsortedData.g, achievement);
+							end
+						end
 					end
 				end
 			end
