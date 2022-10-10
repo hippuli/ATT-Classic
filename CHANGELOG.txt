@@ -1,27 +1,25 @@
-1.1.2 Release Notes
+1.1.3 Release Notes
 Contributions made by Crieve:
-* Added timeline information for the Tome of Cold Weather Flight.
-* The Violet Hold now properly shows a checkmark when you are saved to Heroic. (in English, if this doesn't work for other locales let me know)
-* Updated the Battle for the Undercity.
-* Removed some transmog-specific information from some items for Wrath Classic.
-* Cleaned up some Mount categorization.
-* Whoops, added back the Vendor category.
-* Added some missing object data for the Sons of Hodir quest chain.
-* Learning a new mount or pet should now update the list.
-* Abyssal Shatter isn't until Wrath Phase 3, at the earliest.
-* Added Wrath gathering items and moved the darkmoon decks to the Darkmon Faire where they belong.
-* Moved some Alchemy quests to their respective zones, where a single zone could be determined.
-* Added map data for the "To All The Squirrels I've Loved Before" achievement.
-* Added maps for To All The Squirrels Who Shared My Life.
-* Added the Waterlogged Recipe to Dalaran.
-* Added a fancy reputation calculator for the Sons of Hodir reputation in Storm Peaks.
-* Added fancy reputation tooltips to the Faction headers for the Oracles and Frenzyheart.
-* Added a fancy reputation calculator tooltip for the Kalu'ak.
-* Updated The Shadow Vault flight path for Wrath Classic.
-* Added all of the quest related flight paths. (this should stop the spam on login)
-* Added The Perfect Pebble Feat of Strength.
-* Updated Wintergrasp for Wrath Classic.
-* Added quest giver and map data to The Battle for the Undercity quest chain.
-* Fixed a bunch of Northrend vendors for Wrath Classic.
-* Hiding a breadcrumb quest added in WOD for Wrath Classic.
+* Marked some quests as dailies in Dalaran.
+* The dailies in Sholazar Basin should now disappear when one of their respective sibling dailies is completed. Merged over Classic ATT Tailoring.
+* Commented out the tailoring u-tag debugger. (enable when debugging only)
+* Tailoring on the Retail DB is now the source of truth for Wrath Classic. Removed an explicit Tailoring requireSkill assignment that was overriding specialization assignments.
+* Added Wrath Tailoring Recipes.
+* Updated Alchemy for Wrath Classic.
+* Moved Alchemy over to the Retail DB.
+* Updated Alchemy for Wrath Classic and added missing recipe data.
+* Marked the Cardinal Ruby transmute quest as Phase 3.
+* Moved all Cooking quests to their respective zones. Added all Cooking recipes for Wrath Classic. Updated Small Frog maps. (some spawns weren't available until Cata)
+* No longer caching altQuests.
+* Eggs that "hatch" over time now utilize provider to reduce the amount of unnecessary nesting that occurs. (pun intended)
+* Updated the structure of the Engineering profession for Wrath Classic. (not finished!)
+* Updated Engineering quest format.
+* Added Engineering recipes for Wrath Classic. Moved Engineering over to the Retail DB.
+* Moved Engineering quests into their source zones.
+* Updated Enchanting for Wrath Classic.
+* Moved Enchanting over to the Retail DB.
+* Updated syntax to match retail files, for easier merging of the Leatherworking file.
+* Moved Leatherworking quests to their respective source files. Added timeline data to Classic Leatherworking recipes.
+* Updated Leatherworking and moved everything over to the Retail DB.
+* Added Leatherworking recipes for Wrath Classic.
 
