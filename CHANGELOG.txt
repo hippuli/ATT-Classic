@@ -1,4 +1,5 @@
-1.1.7 Release Notes
+1.1.8 Release Notes
 Contributions made by Crieve:
-* Fixed the cached instance data.
+* Yet another saved instance data cleanup attempt.
+* This is definitely the one.
 

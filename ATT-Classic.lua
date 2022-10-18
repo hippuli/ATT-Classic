@@ -3801,7 +3801,7 @@ local function RefreshSaves()
 			for name,instance in pairs(locks) do
 				local count = 0;
 				for difficulty,lock in pairs(instance) do
-					if lock.reset and serverTime >= lock.reset then
+					if type(lock) ~= "table" or type(lock.reset) ~= "number" or serverTime >= lock.reset then
 						-- Clean this up.
 						instance[difficulty] = nil;
 					else
