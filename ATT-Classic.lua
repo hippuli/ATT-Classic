@@ -3078,7 +3078,7 @@ app.GetBestObjectIDForName = function(name)
 	if o then
 		if #o > 1 then
 			local mapID = app.GetCurrentMapID();
-			local px, py = C_Map.GetPlayerMapPosition("player");
+			local px, py = C_Map.GetPlayerMapPosition(mapID, "player");
 			if px then
 				local closestDistance, closestObjectID, dist = 99999, o[1];
 				for i,objectID in ipairs(o) do
@@ -4387,7 +4387,6 @@ if GetCategoryInfo and GetCategoryInfo(92) ~= "" then
 	end
 	app.RefreshAchievementCollection = function()
 		if ATTAccountWideData then
-			app.RefreshAchievementCollection = nil;
 			for achievementID,_ in pairs(fieldCache["achievementID"]) do
 				CheckAchievementCollectionStatus(achievementID);
 			end
