@@ -1,5 +1,9 @@
-1.3.2 Release Notes
+1.3.3 Release Notes
 Contributions made by Crieve:
-* Blizzard's UI modifications no longer break ATT and show a ghoul.
-* Fixed a parser bug.
+* Fixed a number of Argent Tournament bugs and syntax for Wrath Classic. Faction Tabards actually used to cost 50 champion's seals before Cataclysm. (gross!)
+* Updated Argent Tournament Heirlooms and currencies. Fixed a spelling mistake involving "Gnomeragan". Removed "Champion's Seal" from all non-Tournament vendors.
+* Updated heirloom upgrade token prices.
+* Updated the Argent Tournament!
+* Retail WoW Woes, criteriaIDs changing for no reason again.
+* Addon updaters aren't smart enough to handle future expansion TOC files.
 
