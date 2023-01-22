@@ -6131,7 +6131,7 @@ local fields = {
 					if ref.currencyID ~= id and app.RecursiveGroupRequirementsFilter(ref) then
 						if ref.collectible and not ref.collected then
 							return true;
-						elseif ref.total and ref.total > 0 then
+						elseif ref.total and ref.total > ref.progress then
 							return true;
 						end
 					end
@@ -7079,7 +7079,7 @@ local itemFields = {
 							return app.CollectibleQuests;
 						elseif ref.collectible and not ref.collected then
 							return true;
-						elseif ref.total and ref.total > 0 then
+						elseif ref.total and ref.total > ref.progress then
 							return true;
 						end
 					end
