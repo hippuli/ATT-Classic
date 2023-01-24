@@ -1624,7 +1624,7 @@ ResolveSymbolicLink = function(o)
 							cache = app.SearchForField("questID", assetID);
 						elseif criteriaType == 36 or criteriaType == 42 then
 							criteriaObject.providers = {{ "i", assetID }};
-						elseif criteriaType == 110 or criteriaType == 29 or criteriaType == 69 then
+						elseif criteriaType == 110 or criteriaType == 29 or criteriaType == 69 or criteriaType == 52 or criteriaType == 53 then
 							-- Ignored
 						else
 							print("Unhandled Criteria Type", criteriaType, assetID);
@@ -8592,7 +8592,7 @@ local fields = {
 		return t.r == Enum.FlightPathFaction.Alliance and 1 or 0;
 	end,
 	["lifetimeRank"] = function(t)
-		return select(3, GetPVPLifetimeStats());
+		return select(3, GetPVPLifetimeStats()) or 0;
 	end,
 	["collectible"] = function(t)
 		return app.CollectiblePVPRanks;
@@ -14210,6 +14210,43 @@ app:GetWindow("ItemFinder", UIParent, function(self, ...)
 		UpdateGroups(self.data, self.data.g);
 		UpdateWindow(self, ...);
 		if self.data.OnUpdate then self.data.OnUpdate(self.data); end
+	end
+end);
+app:GetWindow("Objects", UIParent, function(self, ...)
+	if self:IsVisible() then
+		if not self.initialized then
+			self.initialized = true;
+			local db = {};
+			db.text = "Object Debugger";
+			db.icon = app.asset("Achievement_Dungeon_GloryoftheRaider");
+			db.description = "This is a contribution debug tool. NOT intended to be used by the majority of the player base.";
+			db.visible = true;
+			db.expanded = true;
+			db.progress = 0;
+			db.total = 0;
+			db.back = 1;
+			self.data = db;
+			db.g = {};
+			local objectIDs = {};
+			for objectID,o in pairs(app.SearchForFieldContainer("objectID")) do
+				tinsert(objectIDs, tonumber(objectID));
+			end
+			insertionSort(objectIDs);
+			for _,objectID in ipairs(objectIDs) do
+				tinsert(db.g, app.CreateObject(objectID));
+			end
+			BuildGroups(db, db.g);
+		end
+		self.data.progress = 0;
+		self.data.total = 0;
+		
+		-- Update the groups without forcing Debug Mode.
+		local visibilityFilter = app.VisibilityFilter;
+		app.VisibilityFilter = app.NoFilter;
+		UpdateGroups(self.data, self.data.g);
+		UpdateWindow(self, ...);
+		if self.data.OnUpdate then self.data.OnUpdate(self.data); end
+		app.VisibilityFilter = visibilityFilter;
 	end
 end);
 app:GetWindow("RaidAssistant", UIParent, function(self)
