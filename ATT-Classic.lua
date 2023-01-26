@@ -1184,6 +1184,8 @@ CreateObject = function(t)
 				t = app.CreateNPC(t.headerID, t);	-- For now.
 			elseif t.questID then
 				t = app.CreateQuest(t.questID, t);
+			elseif t.factionID then
+				t = app.CreateFaction(t.factionID, t);
 			else
 				t = setmetatable({}, { __index = t });
 			end
@@ -3234,7 +3236,7 @@ local function SearchForLink(link)
 		end
 	else
 		local kind, id, paramA, paramB = strsplit(":", link);
-		kind = string.lower(kind);
+		kind = string.gsub(string.lower(kind), "id", "ID");
 		if string.sub(kind,1,2) == "|c" then
 			kind = string.sub(kind,11);
 		end
@@ -3244,19 +3246,24 @@ local function SearchForLink(link)
 		if id then id = tonumber(strsplit("|[", id) or id); end
 		--print(kind, id, paramA, paramB);
 		--print(string.gsub(string.gsub(link, "|c", "c"), "|h", "h"));
-		if kind == "itemid" then
-			return SearchForField("itemID", id);
-		elseif kind == "questid" or kind == "quest" then
-			return SearchForField("questID", id);
-		elseif kind == "creatureid" or kind == "npcid" then
-			return SearchForField("creatureID", id);
-		elseif kind == "currencyid" or kind == "currency" then
-			return SearchForField("currencyID", id);
-		elseif kind == "spellid" or kind == "spell" or kind == "enchant" or kind == "talent" then
-			return SearchForField("spellID", id);
-		else
-			return SearchForField(string.gsub(kind, "id", "ID"), id);
+		if kind == "i" then
+			kind = "itemID";
+		elseif kind == "quest" or kind == "q" then
+			kind = "questID";
+		elseif kind == "faction" then
+			kind = "factionID";
+		elseif kind == "ach" or kind == "achievement" then
+			kind = "achievementID";
+		elseif kind == "creature" or kind == "npcID" or kind == "npc" or kind == "n" then
+			kind = "creatureID";
+		elseif kind == "currency" then
+			kind = "currencyID";
+		elseif kind == "spell" or kind == "enchant" or kind == "talent" or kind == "recipe" then
+			kind = "spellID";
 		end
+		local cache = SearchForField(kind, id) or {};
+		if #cache == 0 then tinsert(cache, CreateObject({ [kind] = id, ["description"] = "@Crieve: This has not been sourced in ATT yet!" })); end
+		return cache;
 	end
 end
 local function SearchForMissingItemsRecursively(group, listing)
@@ -4377,6 +4384,7 @@ if GetCategoryInfo and GetCategoryInfo(92) ~= "" then
 			local achievementID = t.achievementID;
 			if achievementID then
 				if app.CurrentCharacter.Achievements[achievementID] then return true; end
+				if app.AccountWideAchievements and ATTAccountWideData.Achievements[achievementID] then return 2; end
 				local criteriaID = t.criteriaID;
 				if criteriaID then
 					if criteriaID <= GetAchievementNumCriteria(achievementID) then
@@ -8978,6 +8986,9 @@ local fields = {
 				end
 			end
 		end
+	end,
+	["hash"] = function(t)
+		return "ob:" .. t.objectiveID .. ":" .. (t.questID or 0);
 	end,
 	["objectiveID"] = function(t)
 		return 1;
