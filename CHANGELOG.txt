@@ -1,10 +1,21 @@
-1.3.6 Release Notes
+1.3.7 Release Notes
 Contributions made by Crieve:
-* You can now search for things that aren't in the ATT database if you know the thing's id and type. (Such as the hidden Alliance Reputation)  /att factionid:469
-* Roots
-* The Black Knight's Curse / The Black Knight's Fate isn't until Phase 3.
-* Dame Evniki Kapsalis, Hiren Loresong, and Vasarin Redmorn in until Phase 3.
-* A number of Argent Tournament dailies aren't available until Phase 3.
-* Objectives that are common (argent tournament!!!) no longer merge into others like them and prevent dispaly on the tooltips.
-* Achievement Criteria for completed achievements now properly show partially collected while in account mode.
+* Fixed a bug with bubbleDownAndReplace. Argent Tournament vendors now properly replace their phase tags in Wrath Classic.
+* For Threat From Above, you also need to finish the Black Knight's Fall quest chain.
+* Pony Up! not available until Phase 3 of Wrath Classic.
+* Fixed a bug with various forms of searching for a link.
+* Removed the asterisk after the race name as it seems to have no actual purpose.
+* Fixed an issue with Titles, Mounts, and Battle Pets appearing in the dynamic categories and mini lists when they're objectively only available to the opposite faction. Argent Tournament Vendor mounts now show up under "Argent Tournament" rather than strictly under the generic Vendors header in the Mounts list.
+* v
+* Argent Tournament: Prior to a later patch there were secondary mounts available to non-base faction races that required that faction's reputation to be at Exalted.
+* Duplicate map names no longer appear in the assocaited Maps list on the tooltip.
+* Veteran Uzzek now parks itself for partial completion if you complete either Thun'grim Firegaze or Ulag the Cleaver.
+* Added the removed Horde meta achievements for PVP Battlegrounds for Wrath Classic.
+* Added Object data and CriteriaIDs for Well Read. Updated Parser.
+* Criteria with object data attached now shows the icon and model.
+* Updated the note on Dissevered Leggings in order to stop people from reporting it as dropping in Wrath Classic.
+* Added coordinates and map data for the Well Read achievement.
+* Northrend Dalaran, not just Dalaran.
+* Fixed coordinate for The Birth of the Lich King.
+* Cleaned up objects with model and icon data in the ObjectDB already. (the "model" field was causing issues in Wrath Classic since the Ulduar patch)
 
