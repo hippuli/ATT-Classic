@@ -1,21 +1,10 @@
-1.3.7 Release Notes
+1.3.8 Release Notes
 Contributions made by Crieve:
-* Fixed a bug with bubbleDownAndReplace. Argent Tournament vendors now properly replace their phase tags in Wrath Classic.
-* For Threat From Above, you also need to finish the Black Knight's Fall quest chain.
-* Pony Up! not available until Phase 3 of Wrath Classic.
-* Fixed a bug with various forms of searching for a link.
-* Removed the asterisk after the race name as it seems to have no actual purpose.
-* Fixed an issue with Titles, Mounts, and Battle Pets appearing in the dynamic categories and mini lists when they're objectively only available to the opposite faction. Argent Tournament Vendor mounts now show up under "Argent Tournament" rather than strictly under the generic Vendors header in the Mounts list.
-* v
-* Argent Tournament: Prior to a later patch there were secondary mounts available to non-base faction races that required that faction's reputation to be at Exalted.
-* Duplicate map names no longer appear in the assocaited Maps list on the tooltip.
-* Veteran Uzzek now parks itself for partial completion if you complete either Thun'grim Firegaze or Ulag the Cleaver.
-* Added the removed Horde meta achievements for PVP Battlegrounds for Wrath Classic.
-* Added Object data and CriteriaIDs for Well Read. Updated Parser.
-* Criteria with object data attached now shows the icon and model.
-* Updated the note on Dissevered Leggings in order to stop people from reporting it as dropping in Wrath Classic.
-* Added coordinates and map data for the Well Read achievement.
-* Northrend Dalaran, not just Dalaran.
-* Fixed coordinate for The Birth of the Lich King.
-* Cleaned up objects with model and icon data in the ObjectDB already. (the "model" field was causing issues in Wrath Classic since the Ulduar patch)
+* Dreamscale Breastplate's ability to be crafted also gets removed with 4.0.3.
+* The Key to the Focusing Iris (10 man) quest and quest item were removed after Blizzard added Heroic+ to Wrath Classic.
+* Corrected the Heavy Scorpid recipes for display in Wrath Classic.
+* Updated Love is in the Air for Wrath Classic.
+* Added source quests for Dangerous Love.
+* Provider yes, cost no.
+* Follow the Recipe was added in Legion, not Wrath.
 
