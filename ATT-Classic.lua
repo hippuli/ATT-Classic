@@ -779,7 +779,10 @@ local function BuildSourceTextForTSM(group, l)
 	return L["TITLE"];
 end
 local function CloneData(data)
-	local clone = setmetatable({}, { __index = data });
+	local clone = setmetatable({}, getmetatable(data));
+	for key,value in pairs(data) do
+		rawset(clone, key, value);
+	end
 	if data.g then
 		clone.g = {};
 		for i,group in ipairs(data.g) do
@@ -1104,6 +1107,7 @@ local keysByPriority = {	-- Sorted by frequency of use.
 	"classID",
 	"professionID",
 	"categoryID",
+	"illusionID",
 	"headerID",
 };
 local function GetKey(t)
@@ -1162,6 +1166,8 @@ CreateObject = function(t)
 				t = app.CreateProfession(t.professionID, t);
 			elseif t.categoryID then
 				t = app.CreateCategory(t.categoryID, t);
+			elseif t.illusionID then
+				t = app.CreateIllusion(t.illusionID, t);
 			elseif t.recipeID then
 				t = app.CreateRecipe(t.recipeID, t);
 			elseif t.spellID then
@@ -1638,11 +1644,12 @@ ResolveSymbolicLink = function(o)
 					for criteriaID=1,GetAchievementNumCriteria(achievementID),1 do
 						local criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, id = GetAchievementCriteriaInfo(achievementID, criteriaID);
 						local criteriaObject = app.CreateAchievementCriteria(id);
+						criteriaObject.achievementID = achievementID;
 						if criteriaType == 27 then
 							cache = app.SearchForField("questID", assetID);
 						elseif criteriaType == 36 or criteriaType == 42 then
 							criteriaObject.providers = {{ "i", assetID }};
-						elseif criteriaType == 110 or criteriaType == 29 or criteriaType == 69 or criteriaType == 52 or criteriaType == 53 or criteriaType == 54 then
+						elseif criteriaType == 110 or criteriaType == 29 or criteriaType == 69 or criteriaType == 52 or criteriaType == 53 or criteriaType == 54 or criteriaType == 32 then
 							-- Ignored
 						else
 							print("Unhandled Criteria Type", criteriaType, assetID);
@@ -1650,18 +1657,16 @@ ResolveSymbolicLink = function(o)
 						if cache then
 							local uniques = {};
 							MergeObjects(uniques, cache);
-							for i,o in ipairs(uniques) do
-								rawset(o, "text", nil);
-								for key,value in pairs(o) do
+							for i,p in ipairs(uniques) do
+								rawset(p, "text", nil);
+								for key,value in pairs(p) do
 									criteriaObject[key] = value;
 								end
-								rawset(o, "text", criteriaObject.text);
 							end
 						end
-						criteriaObject.achievementID = achievementID;
 						criteriaObject.parent = o;
-						tinsert(searchResults, criteriaObject);
 						app.CacheFields(criteriaObject);
+						tinsert(searchResults, criteriaObject);
 					end
 				end
 			elseif cmd == "meta_achievement" then
@@ -2862,6 +2867,7 @@ fieldCache["explorationID"] = {};
 fieldCache["factionID"] = {};
 fieldCache["flightPathID"] = {};
 fieldCache["headerID"] = {};
+fieldCache["illusionID"] = {};
 fieldCache["itemID"] = {};
 fieldCache["itemIDAsCost"] = {};
 fieldCache["mapID"] = {};
@@ -2916,6 +2922,9 @@ fieldConverters = {
 	end,
 	["headerID"] = function(group, value)
 		CacheField(group, "headerID", value);
+	end,
+	["illusionID"] = function(group, value)
+		CacheField(group, "illusionID", value);
 	end,
 	["itemID"] = function(group, value)
 		if group.isToy then CacheField(group, "toyID", value); end
@@ -4066,6 +4075,16 @@ local function RefreshCollections()
 		app.print("Refreshing collection...");
 		app.events.QUEST_LOG_UPDATE();
 		coroutine.yield();
+		
+		-- Harvest Illusion Collections
+		if C_TransmogCollection and C_TransmogCollection.GetIllusions then
+			local collectedIllusions = ATTAccountWideData.Illusions;
+			for _,illusion in ipairs(C_TransmogCollection.GetIllusions()) do
+				if rawget(illusion, "isCollected") then rawset(collectedIllusions, illusion.sourceID, 1); end
+			end
+			coroutine.yield();
+		end
+		
 		RefreshSkills();
 		app:GetDataCache();
 		app:RefreshDataCompletely();
@@ -4635,6 +4654,7 @@ end,
 					for i,o in ipairs(f) do
 						if o.key == "factionID" then
 							t.rep = o;
+							break;
 						end
 					end
 					if not t.rep then
@@ -4670,7 +4690,17 @@ end,
 			for i,factionID in ipairs({ ... }) do
 				local f = app.SearchForField("factionID", factionID);
 				if f and #f > 0 then
-					tinsert(reps, f[1]);
+					local done = false;
+					for _,o in ipairs(f) do
+						if o.key == "factionID" then
+							tinsert(reps, o);
+							done = true;
+							break;
+						end
+					end
+					if not done then
+						tinsert(reps, f[1]);
+					end
 				else
 					return true;
 				end
@@ -6333,6 +6363,9 @@ local fields = {
 		return "difficultyID";
 	end,
 	["text"] = function(t)
+		return t.sourceParent and string.format("%s [%s]", t.name, t.sourceParent.text or UNKNOWN) or t.name;
+	end,
+	["name"] = function(t)
 		return L["CUSTOM_DIFFICULTIES"][t.difficultyID] or GetDifficultyInfo(t.difficultyID) or "Unknown Difficulty";
 	end,
 	["icon"] = function(t)
@@ -6964,6 +6997,77 @@ local fields = {
 app.BaseHoliday = app.BaseObjectFields(fields);
 app.CreateHoliday = function(id, t)
 	return setmetatable(constructor(id, t, "holidayID"), app.BaseHoliday);
+end
+end)();
+
+-- Illusion Lib
+(function()
+local illusionFields = {
+	["key"] = function(t)
+		return "illusionID";
+	end,
+	["filterID"] = function(t)
+		return 103;
+	end,
+	["text"] = function(t)
+		return t.link;
+	end,
+	["icon"] = function(t)
+		return "Interface/ICONS/INV_Enchant_Disenchant";
+	end,
+	["collectible"] = function(t)
+		return app.CollectibleIllusions;
+	end,
+	["collected"] = function(t)
+		return ATTAccountWideData.Illusions[t.illusionID];
+	end,
+	["linkAsItem"] = function(t)
+		local name, link = GetItemInfo(t.itemID);
+		if link then
+			rawset(t, "name", name);
+			rawset(t, "link", link);
+			return link;
+		end
+	end,
+	["nameAsItem"] = function(t)
+		local name, link = GetItemInfo(t.itemID);
+		if link then
+			rawset(t, "name", name);
+			rawset(t, "link", link);
+			return name;
+		end
+		return RETRIEVING_DATA;
+	end,
+	["textAsItem"] = function(t)
+		return "|cffff80ff[" .. t.name .. "]|r";
+	end,
+};
+if C_TransmogCollection then
+	if C_TransmogCollection.GetIllusionStrings then
+		illusionFields.link = function(t)
+			return select(2, C_TransmogCollection.GetIllusionStrings(t.illusionID));
+		end
+	elseif C_TransmogCollection.GetIllusionSourceInfo then
+		illusionFields.link = function(t)
+			return select(3, C_TransmogCollection.GetIllusionSourceInfo(t.illusionID));
+		end
+	else
+		illusionFields.text = function(t)
+			return "[Illusion: " .. t.illusionID .. " (Unsupported)]";
+		end
+	end
+end
+local fields = RawCloneData(illusionFields);
+fields.link = illusionFields.linkAsItem;
+fields.name = illusionFields.nameAsItem;
+fields.text = illusionFields.textAsItem;
+app.BaseIllusionWithItem = app.BaseObjectFields(fields);
+app.CreateIllusion = function(id, t)
+	if t and rawget(t, "itemID") then
+		return setmetatable(constructor(id, t, "illusionID"), app.BaseIllusionWithItem);
+	else
+		return setmetatable(constructor(id, t, "illusionID"), app.BaseIllusion);
+	end
 end
 end)();
 
@@ -7729,6 +7833,13 @@ local fields = {
 	["title"] = function(t)
 		return t.maphash;
 	end,
+	["description"] = function(t)
+		if not TomTom then
+			return "You can use Alt+Right Click to plot the coordinates with TomTom installed. If this refuses to be marked collected for you in ATT, try reloading your UI or relogging.";
+		else
+			return "You can use Alt+Right Click to plot the coordinates. If this refuses to be marked collected for you in ATT, try reloading your UI or relogging.";
+		end
+	end,
 	["preview"] = function(t)
 		local exploredMapTextureInfo = t.exploredMapTextureInfo;
 		if exploredMapTextureInfo then
@@ -8376,6 +8487,43 @@ app.CreateNPC = function(id, t)
 		return setmetatable(constructor(id, t, "headerID"), app.BaseHeader);
 	end
 end
+
+-- Automatic Headers
+local HeaderTypeAbbreviations = {
+	["a"] = "achievementID",
+	["m"] = "mapID",
+	["n"] = "npcID",
+	["i"] = "itemID",
+	["q"] = "questID",
+	["s"] = "spellID",
+};
+local automaticHeaderFields = {
+	["key"] = function(t)
+		return "autoID";
+	end,
+	["text"] = function(t)
+		return t.result.name or t.result.text;
+	end,
+	["icon"] = function(t)
+		return t.result.icon;
+	end,
+	["result"] = function(t)
+		local typ = HeaderTypeAbbreviations[t.type];
+		local cache = app.SearchForField(typ, t.autoID);
+		if cache and #cache > 0 then
+			rawset(t, "result", cache[1]);
+			return cache[1];
+		else
+			cache = CreateObject({[typ] = t.autoID});
+			rawset(t, "result", cache);
+			return cache;
+		end
+	end,
+};
+app.BaseAutomaticHeader = app.BaseObjectFields(automaticHeaderFields);
+app.CreateHeader = function(id, t)
+	return setmetatable(constructor(id, t, "autoID"), app.BaseAutomaticHeader);
+end
 end)();
 
 -- Object Lib (as in "World Object")
@@ -8688,11 +8836,13 @@ local questFields = {
 		return rawget(t, "isDaily") or rawget(t, "isWeekly") or rawget(t, "isMonthly") or rawget(t, "isYearly");
 	end,
 	["collectible"] = function(t)
-		if C_QuestLog.IsOnQuest(t.questID) then
-			return true;
+		if app.CollectibleQuests then
+			if C_QuestLog.IsOnQuest(t.questID) then
+				return true;
+			end
+			if t.locked then return app.AccountWideQuests; end
+			return not t.repeatable and not t.isBreadcrumb;
 		end
-		if t.locked then return app.AccountWideQuests; end
-		return app.CollectibleQuests and (not t.repeatable and not t.isBreadcrumb);
 	end,
 	["collected"] = function(t)
 		if C_QuestLog.IsOnQuest(t.questID) then
@@ -8730,10 +8880,10 @@ local questFields = {
 		return "|cffcbc3e3" .. t.name .. "|r";
 	end,
 	["collectibleAsReputation"] = function(t)
-		if C_QuestLog.IsOnQuest(t.questID) then
-			return true;
-		end
 		if app.CollectibleQuests then
+			if C_QuestLog.IsOnQuest(t.questID) then
+				return true;
+			end
 			if t.locked then return app.AccountWideQuests; end
 			if t.maxReputation and app.CollectibleReputations then
 				return true;
@@ -8803,7 +8953,7 @@ local criteriaFuncs = {
 	["label_questID"] = L["LOCK_CRITERIA_QUEST_LABEL"],
     ["text_questID"] = function(v)
 		local questObj = app.SearchForObject("questID", v);
-        return sformat("[%d] %s", v, questObj and questObj.text or "???");
+        return string.format("[%d] %s", v, questObj and questObj.text or "???");
     end,
 	]]--
 
@@ -9290,7 +9440,7 @@ local spellFields = {
 		return GetItemInfo(t.itemID) or t.nameAsSpell;
 	end,
 	["nameAsSpell"] = function(t)
-		return GetSpellLink(t.spellID) or app.GetSpellName(t.spellID) or RETRIEVING_DATA;
+		return app.GetSpellName(t.spellID) or GetSpellLink(t.spellID) or RETRIEVING_DATA;
 	end,
 	["tsmAsItem"] = function(t)
 		return string.format("i:%d", t.itemID);
@@ -9502,7 +9652,7 @@ function app.FilterItemBind(item)
 	return item.b == 2 or item.b == 3; -- BoE
 end
 function app.FilterItemClass(item)
-	if app.UnobtainableItemFilter(item) then
+	if app.UnobtainableItemFilter(item) and app.PvPFilter(item) then
 		if app.ItemBindFilter(item) then return true; end
 		return app.ItemTypeFilter(item)
 			and app.RequireBindingFilter(item)
@@ -9510,6 +9660,13 @@ function app.FilterItemClass(item)
 			and app.ClassRequirementFilter(item)
 			and app.RaceRequirementFilter(item)
 			and app.RequireFactionFilter(item);
+	end
+end
+function app.FilterItemPvP(item)
+	if item.pvp then
+		return false;
+	else
+		return true;
 	end
 end
 function app.FilterItemClass_RequireClasses(item)
@@ -9612,6 +9769,7 @@ app.GroupRequirementsFilter = app.NoFilter;
 app.GroupVisibilityFilter = app.NoFilter;
 app.ItemBindFilter = app.FilterItemBind;
 app.ItemTypeFilter = app.NoFilter;
+app.PvPFilter = app.NoFilter;
 app.CollectedItemVisibilityFilter = app.NoFilter;
 app.ClassRequirementFilter = app.NoFilter;
 app.RaceRequirementFilter = app.NoFilter;
@@ -10046,6 +10204,7 @@ function app:CreateMiniListForGroup(group, retried)
 			end
 			
 			local mainQuest = CloneData(group);
+			if group.parent then mainQuest.sourceParent = group.parent; end
 			if mainQuest.sym then
 				mainQuest.collectible = true;
 				mainQuest.visible = true;
@@ -10438,6 +10597,7 @@ function app:CreateMiniListForGroup(group, retried)
 		
 		BuildGroups(popout.data, popout.data.g);
 		UpdateGroups(popout.data, popout.data.g);
+		if group.parent then popout.data.sourceParent = group.parent; end
 	end
 	if IsAltKeyDown() then
 		AddTomTomWaypoint(popout.data, false);
@@ -11026,6 +11186,7 @@ local function RowOnEnter(self)
 				GameTooltip:AddLine(msg);
 			end
 		end
+		if reference.illusionID and app.Settings:GetTooltipSetting("illusionID") then GameTooltip:AddDoubleLine(L["ILLUSION_ID"], tostring(reference.illusionID)); end
 		if reference.objectID and app.Settings:GetTooltipSetting("objectID") then GameTooltip:AddDoubleLine(L["OBJECT_ID"], tostring(reference.objectID)); end
 		if reference.speciesID and app.Settings:GetTooltipSetting("speciesID") then GameTooltip:AddDoubleLine(L["SPECIES_ID"], tostring(reference.speciesID)); end
 		if reference.spellID then
@@ -12270,8 +12431,9 @@ function app:GetDataCache()
 			for i,_ in pairs(fieldCache["achievementID"]) do
 				if not self.achievements[i] then
 					local achievement = app.CreateAchievement(tonumber(i));
+					local sources = {};
 					for j,o in ipairs(_) do
-						for key,value in pairs(o) do rawset(achievement, key, value); end
+						MergeClone(sources, o);
 						if o.parent then
 							achievement.sourceParent = o.parent;
 							if not o.sourceQuests then
@@ -12301,6 +12463,18 @@ function app:GetDataCache()
 									end
 								end
 							end
+						end
+					end
+					local count = #sources;
+					if count == 1 then
+						for key,value in pairs(sources[1]) do
+							rawset(achievement, key, value);
+						end
+					elseif count > 1 then
+						-- Find the most accessible version of the thing.
+						insertionSort(sources, sortByAccessibility);
+						for key,value in pairs(sources[1]) do
+							rawset(achievement, key, value);
 						end
 					end
 					self.achievements[i] = achievement;
@@ -16571,6 +16745,7 @@ app.events.VARIABLES_LOADED = function()
 	if not accountWideData.Exploration then accountWideData.Exploration = {}; end
 	if not accountWideData.Factions then accountWideData.Factions = {}; end
 	if not accountWideData.FlightPaths then accountWideData.FlightPaths = {}; end
+	if not accountWideData.Illusions then accountWideData.Illusions = {}; end
 	if not accountWideData.Quests then accountWideData.Quests = {}; end
 	if not accountWideData.RWP then accountWideData.RWP = {}; end
 	if not accountWideData.Spells then accountWideData.Spells = {}; end
