@@ -1,15 +1,15 @@
-1.4.0 Release Notes
+1.4.1 Release Notes
 Contributions made by Crieve:
-* TBC_BLACKSMITHING no longer uses an NPC ID for MISC.
-* Added Wrath Crafted Alchemy items.
-* Added a section for Pick Pocket and Lockpicking under World Drops.
-* Updated Tanaris Rares, Vendors, and Zone Drops. (file in progress still!)
-* Fixed a bug involving Shaman for Alliance and Paladin for Horde when using "Only Current Faction" after TBC.
-* The Tome of Divinity (1a/8) now appears as completed if the followup was completed for Wrath Classic.
-* Added object information for Higher Learning.
-* The Pledge of Secrecy marked as removed with Wrath Classic.
-* Finished updating Tanaris for future expansion content.
-* Tanaris now resides on the Retail Database.
-* Updated Silithus for future expansion content.
-* Added a few missing items to Silithus. Silithus now resides on the Retail Database.
+* Shadowguard quests were actually removed in 2.4.1. Updated Orgrimmar for Wrath Classic.
+* Fixed timelines for some Orgrimmar quests. Orgrimmar now resides on the Retail Database.
+* Fixed a number of Children's Week achievement criterias.
+* Vashj'ir has been condensed into a single file root for Cata Classic. (file will be cleaned up before CC) Added a timeline to the header of each of the Cataclysm zones so that ATT-Classic can reference the continent entirely without including information that shouldn't be available yet. Deeprun Tram now has an icon in Wrath Classic.
+* Val'anyr, Hammer of Ancient Kings now obeys the Hammer Prio Phase Filter in Wrath Classic. Added the Val'anyr, Hammer of Ancient Kings feat of strength.
+* The first quest of The Tome of Valor quest chain is repeatable.
+* Classic can actually track spell ranks for professions.
+* Updated Wrath of the Lich King Jewelcrafting Recipe Items.
+* Added spells from recipes for Wrath Classic. (spells from trainers removed with cataclysm still need to be added)
+* Added missing trainer spells for Wrath Classic Jewelcrafting.
+* Added all Classic-Specific "Defense Protocol Alpha" loot tables.
+* Added back missing spell reporting, minus Inscription. I KNOW! I'm workin' on it!
 
