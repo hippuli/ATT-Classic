@@ -1,15 +1,15 @@
-1.4.1 Release Notes
+1.4.2 Release Notes
 Contributions made by Crieve:
-* Shadowguard quests were actually removed in 2.4.1. Updated Orgrimmar for Wrath Classic.
-* Fixed timelines for some Orgrimmar quests. Orgrimmar now resides on the Retail Database.
-* Fixed a number of Children's Week achievement criterias.
-* Vashj'ir has been condensed into a single file root for Cata Classic. (file will be cleaned up before CC) Added a timeline to the header of each of the Cataclysm zones so that ATT-Classic can reference the continent entirely without including information that shouldn't be available yet. Deeprun Tram now has an icon in Wrath Classic.
-* Val'anyr, Hammer of Ancient Kings now obeys the Hammer Prio Phase Filter in Wrath Classic. Added the Val'anyr, Hammer of Ancient Kings feat of strength.
-* The first quest of The Tome of Valor quest chain is repeatable.
-* Classic can actually track spell ranks for professions.
-* Updated Wrath of the Lich King Jewelcrafting Recipe Items.
-* Added spells from recipes for Wrath Classic. (spells from trainers removed with cataclysm still need to be added)
-* Added missing trainer spells for Wrath Classic Jewelcrafting.
-* Added all Classic-Specific "Defense Protocol Alpha" loot tables.
-* Added back missing spell reporting, minus Inscription. I KNOW! I'm workin' on it!
+* Added missing timeline constants from Retail.
+* Added mainline Auctionator support for group-based AH searching.
+* Fixed an issue with the Auction House module.
+* Parser main.lua files now (almost) match each other between both versions of ATT.
+* Quick King's Amber isn't out until the rest of the epic gems are out.
+* Design: Teardrop Living Ruby was available, it was removed, but definitely not NYI.
+* Added Lesser Flask of Resistance to Wrath Alchemy. Added some missing recipes to Wrath Leatherworking. Updated Chef's Award / Epicurean's Award costs to use a helper function.
+* Updated locale names.
+* Apparently you can't have an empty source file.
+* Added some missing Tailoring Recipes to Wrath Classic.
+* Added some missing Engineering Tinkers to Wrath Classic.
+* Killed Wrath Jewelcrafting recipe data in the Retail DB in order to fix expansion specific recipe assignments.
 
