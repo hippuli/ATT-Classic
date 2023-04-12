@@ -7254,7 +7254,9 @@ local itemFields = {
 		return t.collectibleAsCost;
 	end,
 	["collected"] = function(t)
-		return t.collectedAsCost or t.collectedAsRWP;
+		local rwp = t.collectedAsRWP;
+		if rwp == 0 then return nil; end
+		return rwp or t.collectedAsCost;
 	end,
 	["collectedAsCost"] = function(t)
 		local id, any, partial = t.itemID;
@@ -7318,16 +7320,6 @@ local itemFields = {
 				end
 			end
 			if any then
-				if (t.rwp or (t.u and (t.u == 2 or t.u == 3 or t.u == 4))) and app.CollectibleRWP and t.f and app.Settings:GetFilterForRWP(t.f) then
-					if not ATTAccountWideData.RWP[id] then
-						if app.Settings:GetTooltipSetting("Report:Collected") then
-							print((t.text or RETRIEVING_DATA) .. " was added to your collection!");
-						end
-						app:PlayFanfare();
-					end
-					app.CurrentCharacter.RWP[id] = 1;
-					ATTAccountWideData.RWP[id] = 1;
-				end
 				return partial and 2 or 1;
 			end
 		end
@@ -7393,10 +7385,14 @@ local itemFields = {
 				return 0;
 			end
 			if app.AccountWideRWP and ATTAccountWideData.RWP[id] then return 2; end
+			return 0;
 		end
 	end,
 	["collectedAsFaction"] = function(t)
-		return t.collectedAsFactionOnly or t.collectedAsCost;
+		if t.collectedAsCost == false then
+			return 0;
+		end
+		return t.collectedAsFactionOnly;
 	end,
 	["collectedAsFactionOnly"] = function(t)
 		if t.factionID then
@@ -7411,7 +7407,10 @@ local itemFields = {
 		end
 	end,
 	["collectedAsFactionOrQuest"] = function(t)
-		return t.collectedAsFactionOnly or t.collectedAsQuest;
+		if not t.collectedAsQuest then
+			return 0;
+		end
+		return t.collectedAsFactionOnly;
 	end,
 	["collectedAsQuest"] = function(t)
 		return IsQuestFlaggedCompletedForObject(t) or t.collectedAsCost;
@@ -7787,7 +7786,7 @@ local mapIDToMapName, mapIDToAreaID = {}, {
 	[126] = { 4560 },	-- The Underbelly
 	[427] = { 132, 800 },	-- Coldridge Valley, Coldridge Pass
 	[465] = { 154 },	-- Deathknell
-	[425] = { 9 },	-- Northshire Valley
+	[425] = { 9, 59, 24, 34 },	-- Northshire Valley, Northshire Vineyards, Northshire Abbey, Echo Ridge Mine
 	[460] = { 188 },	-- Shadowglen
 	[461] = { 363 },	-- Valley of Trials
 	[462] = { 221 },	-- Camp Narache

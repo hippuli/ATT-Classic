@@ -1,15 +1,24 @@
-1.4.2 Release Notes
+1.4.3 Release Notes
 Contributions made by Crieve:
-* Added missing timeline constants from Retail.
-* Added mainline Auctionator support for group-based AH searching.
-* Fixed an issue with the Auction House module.
-* Parser main.lua files now (almost) match each other between both versions of ATT.
-* Quick King's Amber isn't out until the rest of the epic gems are out.
-* Design: Teardrop Living Ruby was available, it was removed, but definitely not NYI.
-* Added Lesser Flask of Resistance to Wrath Alchemy. Added some missing recipes to Wrath Leatherworking. Updated Chef's Award / Epicurean's Award costs to use a helper function.
-* Updated locale names.
-* Apparently you can't have an empty source file.
-* Added some missing Tailoring Recipes to Wrath Classic.
-* Added some missing Engineering Tinkers to Wrath Classic.
-* Killed Wrath Jewelcrafting recipe data in the Retail DB in order to fix expansion specific recipe assignments.
+* Updated the format of The Balance of Light and Shadow so that the rewards count as RWP for Wrath Classic.
+* Eris Havenfire got a new location during Wrath Classic.
+* Added the quest "A Warning" to EPL.
+* Added Chrales' Magister's Terrace Heroic Saved Instance fix.
+* Stonefirst Girdle now grants Plate completion on a plate user for Wrath Classic.
+* Raging Berserker's Helm and Herod's Shoulder now grant Plate completion when on a Plate user.
+* Fixed an issue with items that grant reputation. Items used as cost for another quest no longer grant their RWP credit. As it turns out, in the past, T0 was NOT awarded  if the player completed their T0.5 quest despite having the T0.5 transmog credit. This stupid oversight is why I'm now showing you the T0 items again, you effectively have to collect them twice. The second time though you can collect them on an alt or something!
+* More cost shenanigans.
+* Safe Deposit now requires 6 bank slots for Classic Era.
+* Northshire Vineyards and various other submaps from that area now show the Northshire Valley map instead of Elwynn Forest. Added object info for Milly's Harvest.
+* Quests sourced with AQD/HQD no longer report themselves as being a missing source Quest in Parser.
+* You've Been Served is now a daily quest.
+* Tome of Polymorph: Rabbit now has its spellID attached.
+* Updated Noblegarden for Wrath Classic.
+
+Contributions made by gbrage:
+* Timeline Constants Change
+* Merge branch 'master' of https://github.com/DFortun81/ATT-WRATH-Classic
+* More timeline changes
+* - More Timeline Constants
+* Small Fix
 
