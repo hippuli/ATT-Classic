@@ -1,18 +1,9 @@
-1.4.6 Release Notes
+1.4.7 Release Notes
 Contributions made by Crieve:
-* Will the real Glyph of Shadow please stand up, please stand up
-* Handbook of Deadly Poison V actually became useless after Wrath, not Cataclysm. (poisons are no longer learned, they are purchased)
-* Isle of Conquest likely not coming out in Wrath Classic until ICC.
-* Added Key to the Focusing Iris to the respective quests.
-* Added missing Fur Lining recipes for LW.
-* Sprite Darter Egg no longer explicitly marked as Alliance Only for Wrath Classic.
-* Adjusted the coordinate for Aftermath of the Second War in Darnassus for Wrath Classic.
-* Updated the coordinate for Elixirs for the Bladeleafs for Wrath Classic.
-* Added all ranks of Lifeblood for Herbalism. Fixed a bug for account wide tracking for Bear Form. Herbalism once again gets detected as a profession for characters that have it.
-* The quest "Liquid Stone" after Wrath does not require the Stone quest chain to be completed first.
-* Badlands Reagent Run II requires Uldaman Reagent Run to be completed first.
-* Added some missing objects.
-* Annora should now only appear for Enchanters in Uldaman. The OG Black Battlestrider had a Dwarf/Gnome requirement before TBC.
-* Blacksmithing quests require Galvan's Finest Pupil.
-* Rebuilt DB modules for all classic builds.
+* Toys are no longer busted.
+* ATT-Classic now supports gender-specific titles.
+* Added back the Druid Only flight paths in Nighthaven, Moonglade.
+* Sha'tari Skyguard daily quests now show up until Exalted.
+* Deadman Dagger is now a collectible for Classic again.
+* Updated DB modules.
 
