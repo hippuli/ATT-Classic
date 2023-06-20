@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
 --                        A L L   T H E   T H I N G S                         --
 --------------------------------------------------------------------------------
---				Copyright 2017-2022 Dylan Fortune (Crieve-Sargeras)           --
+--				Copyright 2017-2023 Dylan Fortune (Crieve-Sargeras)           --
 --------------------------------------------------------------------------------
 local app = select(2, ...);
 local L = app.L;
@@ -117,6 +117,7 @@ local GeneralSettingsBase = {
 		["Thing:Toys"] = true,
 		["Show:CompletedGroups"] = false,
 		["Show:CollectedThings"] = false,
+		["Show:OnlyActiveEvents"] = true,
 	},
 };
 local FilterSettingsBase = {
@@ -180,20 +181,6 @@ local UnobtainableSettingsBase = {
 		[1] = false,	-- Never Implemented
 		[2] = false,	-- Removed From Game
 		[3] = false,	-- Blizzard Balance
-
-		-- Seasonal Filters
-		[1000] = false,	-- Brewfest
-		[1001] = false,	-- Children's Week
-		[1002] = false,	-- Day of the Dead
-		[1003] = false,	-- Feast of Winter Veil
-		[1004] = false,	-- Hallow's End
-		[1005] = false,	-- Harvest Festival
-		[1006] = false,	-- Love is in the Air (Valentine's Day)
-		[1007] = false,	-- Lunar Festival
-		[1008] = false,	-- Midsummer Fire Festival
-		[1010] = false,	-- Noblegarden
-		[1011] = false,	-- Pirate's Day
-		[1013] = false,	-- Pilgrim's Bounty
 	},
 };
 local OnClickForTab = function(self)
@@ -266,7 +253,7 @@ settings.Initialize = function(self)
 		end);
 	end
 end
-settings.CheckSeasonalDate = function(self, u, startMonth, startDay, endMonth, endDay)
+settings.CheckSeasonalDate = function(self, eventID, startMonth, startDay, endMonth, endDay)
 	local today = date("*t");
 	local now, start, ends = time({day=today.day,month=today.month,year=today.year,hour=0,min=0,sec=0});
 	if startMonth <= endMonth then
@@ -280,10 +267,7 @@ settings.CheckSeasonalDate = function(self, u, startMonth, startDay, endMonth, e
 	end
 	
 	local active = (now >= start and now <= ends);
-	UnobtainableSettingsBase.__index[u] = active;
-end
-settings.CheckWeekDay = function(self, u, weekDay)
-	UnobtainableSettingsBase.__index[u] = date("*t").wday == weekDay;
+	app.ActiveEvents[eventID] = active;
 end
 settings.Get = function(self, setting)
 	return ATTClassicSettings.General[setting];
@@ -500,7 +484,6 @@ end
 settings.UpdateMode = function(self)
 	if self:Get("DebugMode") then
 		app.GroupFilter = app.NoFilter;
-		app.SeasonalItemFilter = app.NoFilter;
 		app.VisibilityFilter = app.NoFilter;
 		
 		app.ItemTypeFilter = app.NoFilter;
@@ -508,6 +491,7 @@ settings.UpdateMode = function(self)
 		app.RaceRequirementFilter = app.NoFilter;
 		app.RequiredSkillFilter = app.NoFilter;
 		app.RequireFactionFilter = app.NoFilter;
+		app.RequireEventFilter = app.NoFilter;
 
 		app.AccountWideAchievements = true;
 		app.AccountWideBattlePets = true;
@@ -531,21 +515,18 @@ settings.UpdateMode = function(self)
 		app.CollectibleIllusions = true;
 		app.CollectibleLoot = true;
 		app.CollectibleMounts = true;
-		app.CollectiblePVPRanks = true;
 		app.CollectibleQuests = true;
 		app.CollectibleRecipes = true;
 		app.CollectibleReputations = true;
 		app.CollectibleRWP = true;
 		app.CollectibleTitles = true;
 		app.CollectibleToys = true;
+		
+		-- Modules
+		app.Modules.PVPRanks.SetCollectible(true);
 	else
 		app.VisibilityFilter = app.ObjectVisibilityFilter;
 		app.GroupFilter = app.FilterItemClass;
-		if app.GetDataMember("FilterSeasonal") then
-			app.SeasonalItemFilter = app.FilterItemClass_SeasonalItem;
-		else
-			app.SeasonalItemFilter = app.NoFilter;
-		end
 
 		app.AccountWideAchievements = self:Get("AccountWide:Achievements");
 		app.AccountWideBattlePets = self:Get("AccountWide:BattlePets");
@@ -569,13 +550,15 @@ settings.UpdateMode = function(self)
 		app.CollectibleIllusions = self:Get("Thing:Illusions");
 		app.CollectibleLoot = self:Get("Thing:Loot");
 		app.CollectibleMounts = self:Get("Thing:Mounts");
-		app.CollectiblePVPRanks = self:Get("Thing:PVPRanks");
 		app.CollectibleQuests = self:Get("Thing:Quests");
 		app.CollectibleRecipes = self:Get("Thing:Recipes");
 		app.CollectibleReputations = self:Get("Thing:Reputations");
 		app.CollectibleRWP = self:Get("Thing:RWP");
 		app.CollectibleTitles = self:Get("Thing:Titles");
 		app.CollectibleToys = self:Get("Thing:Toys");
+		
+		-- Modules
+		app.Modules.PVPRanks.SetCollectible(self:Get("Thing:PVPRanks"));
 
 		if self:Get("AccountMode") then
 			app.ItemTypeFilter = app.NoFilter;
@@ -593,6 +576,12 @@ settings.UpdateMode = function(self)
 			app.RaceRequirementFilter = app.FilterItemClass_RequireRaces;
 			app.RequiredSkillFilter = app.FilterItemClass_RequiredSkill;
 			app.RequireFactionFilter = app.FilterItemClass_RequireFaction;
+		end
+		
+		if self:Get("Show:OnlyActiveEvents") then
+			app.RequireEventFilter = app.Modules.Events.FilterIsEventActive;
+		else
+			app.RequireEventFilter = app.NoFilter;
 		end
 	end
 	
@@ -1915,26 +1904,8 @@ f.OnRefresh = function(self)
 end;
 table.insert(settings.MostRecentTab.objects, f);
 
-local SeasonalHolidayFiltersLabel = settings:CreateFontString(nil, "ARTWORK", "GameFontNormal");
-SeasonalHolidayFiltersLabel:SetPoint("TOPLEFT", line, "BOTTOMRIGHT", -200, -8);
-SeasonalHolidayFiltersLabel:SetJustifyH("LEFT");
-SeasonalHolidayFiltersLabel:SetText("|CFFAAAAFFSeasonal Holiday Filters|r");
-SeasonalHolidayFiltersLabel:Show();
-table.insert(settings.MostRecentTab.objects, SeasonalHolidayFiltersLabel);
-
--- Seasonal Filters
-last, xoffset, yoffset = SeasonalHolidayFiltersLabel, 0, -4;
-for i,u in ipairs({ 1000, 1001, 1002, 1012, 1003, 1004, 1005, 1018, 1006, 1007, 1008, 1010, 1011, 1013, 1015 }) do
-	local filter = settings:CreateCheckBox(reasons[u][3] or tostring(u), UnobtainableOnRefresh, UnobtainableFilterOnClick);
-	filter:SetATTTooltip(reasons[u][2]);
-	filter:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, yoffset);
-	filter.u = u;
-	last = filter;
-	yoffset = 6;
-end
-
 local GeneralUnobtainableFiltersLabel = settings:CreateFontString(nil, "ARTWORK", "GameFontNormal");
-GeneralUnobtainableFiltersLabel:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -8);
+GeneralUnobtainableFiltersLabel:SetPoint("TOPLEFT", line, "BOTTOMRIGHT", -200, -8);
 GeneralUnobtainableFiltersLabel:SetJustifyH("LEFT");
 GeneralUnobtainableFiltersLabel:SetText("|CFFFFAAAAGeneral Unobtainable Filters|r");
 GeneralUnobtainableFiltersLabel:Show();

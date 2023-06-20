@@ -1,9 +1,30 @@
-1.4.7 Release Notes
+1.4.9 Release Notes
 Contributions made by Crieve:
-* Toys are no longer busted.
-* ATT-Classic now supports gender-specific titles.
-* Added back the Druid Only flight paths in Nighthaven, Moonglade.
-* Sha'tari Skyguard daily quests now show up until Exalted.
-* Deadman Dagger is now a collectible for Classic again.
-* Updated DB modules.
+* Classic Era: You can once again right click on Mount, Pet, and Reputation achievements to pop out their contents.
+* Classic Era: Giddy Up can now be completed.
+* Fixed the Giddy Up tooltip.
+* The source quest for Guarding Secrets (1/2) is Wild Guardians (2/3), rather, the item that starts the quest does not drop until you complete it.
+* The event cache now leases itself for a week. The holiday header now sorts itself by what's coming next at the top. (or things missing their event schedule at the top)
+* Macabre Marionette is not actually a battle pet until 5.4.0.
+* Parser now allows the "e" field, which is like "u", but for events.
+* Holidays are now called "Events" and have been restructured to use their own field instead of piggybacking off of the unobtainable field. (meaning something can now have both an associated event and an unobtainable status!) You can no longer manually filter an event.
+* Updated tooltip text for Events. Kalu'ak Fishing Derby and STV events now have proper event time calculations built in. (needed since neither appear on the calendar for TBC/Classic/Retail, they do in Wrath though!)
+* Fixed an annoying SetHyperlink bug.
+* Updated the Timewalking section to utilize eventID filtering. Only the Timewalking event that is active will now appear when you are filtering for "Only Active Events".
+* Created the Events Module. All logic related to Events are handled within a module file. This file is currently sync'd between all versions of ATT. Please do not mess with it.
+* Added Darkmoon Faire programmatic scheduling for Classic and TBC!
+* WoW Anniversary section updated to use the new Event Module. The section currently known as "Holiday" is going to change.
+* Now passing the name of the class to BaseObjectFields.
+* Honor Titles now have their timelines attached directly.
+* Kinda fixed the Raid Assistant.
+* The Hand of the Righteous now shows up until you are Neutral with Brood of Nozdormu.
+* Brood of Nozdormu faction now shows up in the Silithus mini list.
+* ...
+* The schedule builder now ensures the key order of the date strings.
+* Fixed an issue with the event schedule builder where it was always using the local time of the person that built it when calculating the timestamp.
+* Cleaned up the Create NPC function a bit.
+* Updated the addon to better utilize classes. Testing moving another module to a different folder.
+* Fixed a bug with collectibles.
+* Corrected an issue with the progress tracker.
+* Fixed a number of performance issues involving the mini list.
 
