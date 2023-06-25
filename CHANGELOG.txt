@@ -1,20 +1,24 @@
-1.5.1 Release Notes
+1.5.2 Release Notes
 Contributions made by Crieve:
-* Fixed achievement popouts.
-* ... Actually fixed Jeeves being a Toy.
-* ATT-Classic now uses the SCROLL_FRAME_SCROLL_BAR_TEMPLATE if its available.
-* The mount, battle pet, and faction dynamic headers no longer rebuild themselves after the first time.
-* The Tradeskills window is now silent.
-* UpdateVisibleRowData is now window:Refresh. Improved performance when using this function in quick succession.
-* The addon now caches "PrimeData" on your current character's saved variable stack. This allows the mini list to properly report your collection while the prime window is uninstanciated. Additionally, each character in your Sync tab will now show its progress, assuming PrimeData has been cached on that character.
-* Now using cached prime data a bit more than GetDataCache.
-* Optimized SetRowData.
-* Currency Lib no longer attempts to show currency as a link, the game lags like shit when you do.
-* Modifying the list scale in the settings now triggers a :Refresh() on the associated windows.
-* Greatly reduced the overhead of the Currency Lib... Globals are bad!
-* Fixed an issue with the indicator icon on rows after a previous update.
-* Cache improvements, turning globals into locals.
-* Updated categories
-* Revert "RELEASE: 1.5.1"
-* Fixed Loremaster of Kalimdor.... again. Re-enabled Prime caching.
+* Summary text now gets "smudged", which is kinda like Dirty, but not as mucky.
+* Fixed an issue with dynamic icons in the new SetRowData function.
+* Soft Reserves, RWP, and Sync all moved to their own UI files.
+* Moved around some initialization code to cache earlier. Moved GetDataCache to directly following Categories.lua so that it can execute during the loading screen.
+* Adjusted the loading order for some source files.
+* Added the Color lib from Retail ATT.
+* Fixed a bug with reporting completed quests with no valid text.
+* Slight improvement to caching with some local variables.
+* Added back /attbreadcrumbs, this lets you find all of the breadcrumbs in ATT!
+* ...
+* Added back /attdailies! This shows you all of the dailies
+* Fixed /attrandom!
+* Added the Audio lib from Retail ATT.
+* Greatly improved the performance of contains and indexOf lookups and added the Table lib.
+* Fixed key collection detection for keys with more than one version.
+* Added the Sort lib!
+* You can now Shift+Right Click headers to sort them.
+* otherArr was the classic variable name...
+* Red/Blue Firework is now tagged with their respective faction requirements in TBC/Wrath, but becomes available to both with Cataclysm.
+* You can now once again interact with the character data in the Account Management section.
+* Deleting a character once again refreshes the Sync window.
 

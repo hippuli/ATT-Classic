@@ -57,28 +57,6 @@ settings:SetScript("OnShow", function(self)
 	self:Refresh();
 end);
 
--- Music / Sound Management (You can add your own sounds for this if you want.)
-settings.AUDIO_COMPLETE_TABLE = {
-	app.asset("complete1.ogg"),
-};
-settings.AUDIO_DEATH_TABLE = {
-	app.asset("death.ogg"),
-};
-settings.AUDIO_FANFARE_TABLE = {
-	app.asset("fanfare1.ogg"),
-	app.asset("fanfare2.ogg"),
-	app.asset("fanfare3.ogg"),
-	app.asset("fanfare4.ogg"),
-	app.asset("fanfare5.ogg"),
-	app.asset("fanfare6.ogg"),
-};
-settings.AUDIO_RAREFIND_TABLE = {
-	app.asset("rarefind1.ogg"),
-};
-settings.AUDIO_REMOVE_TABLE = {
-	app.asset("remove1.ogg"),
-};
-
 -- Settings Class
 local GeneralSettingsBase = {
 	__index = {
@@ -247,11 +225,6 @@ settings.Initialize = function(self)
 	
 	-- Account Synchronization
 	self.TabsByName["Features"]:InitializeSyncWindow();
-	if self:GetTooltipSetting("Auto:Sync") then
-		C_Timer.After(1, function()
-			app:Synchronize(true);
-		end);
-	end
 end
 settings.CheckSeasonalDate = function(self, eventID, startMonth, startDay, endMonth, endDay)
 	local today = date("*t");
@@ -751,7 +724,7 @@ ModeLabel.OnRefresh = function(self)
 	self:SetText(settings:GetModeString());
 end;
 
-local DebugModeCheckBox = settings:CreateCheckBox("|Cff15abffDebug Mode|r (Show Everything)",
+local DebugModeCheckBox = settings:CreateCheckBox("|C" .. app.Colors.Completed .. "Debug Mode|r (Show Everything)",
 function(self)
 	self:SetChecked(settings:Get("DebugMode"));
 end,
@@ -2730,12 +2703,13 @@ function tab:InitializeSyncWindow()
 	syncWindow:SetPoint("RIGHT", SyncLabel, "LEFT", 300, 0);
 	syncWindow:SetPoint("TOP", AutomaticallySyncAccountDataCheckBox, "BOTTOM", 0, 4);
 	syncWindow:SetPoint("BOTTOM", settings, "BOTTOM", 0, 4);
-	local ogMethod = syncWindow.Show;
-	syncWindow.Show = function(self)
-		ogMethod(self);
-		self:Update();
-	end
 	tinsert(tab.objects, syncWindow);
+	
+	if settings:GetTooltipSetting("Auto:Sync") then
+		C_Timer.After(1, function()
+			app:Synchronize(true);
+		end);
+	end
 end
 end)();
 
@@ -2748,7 +2722,7 @@ local AboutText = settings:CreateFontString(nil, "ARTWORK", "GameFontNormal");
 AboutText:SetPoint("TOPLEFT", line, "BOTTOMLEFT", 8, -8);
 AboutText:SetPoint("TOPRIGHT", line, "BOTTOMRIGHT", -8, -8);
 AboutText:SetJustifyH("LEFT");
-AboutText:SetText(L["TITLE"] .. " |CFFFFFFFFis a collection tracking addon that shows you where and how to get everything in the game! We have a large community of users on our Discord (link at the bottom) where you can ask questions, submit suggestions as well as report bugs or missing items. If you find something collectible or a quest that isn't documented, you can tell us on the Discord, or for the more technical savvy, we have a Git that you may contribute directly to.\n\nWhile we do strive for completion, there's a lot of stuff getting added into the game each patch, so if we're missing something, please understand that we're a small team trying to keep up with changes as well as collect things ourselves. :D\n\nFeel free to ask me questions when I'm streaming and I'll try my best to answer it, even if it's not directly related to ATT (general WoW addon programming as well).\n\n- |r|Cffff8000Crieve (DFortun81 on GitHub)|CFFFFFFFF\n\nIf you wish to play with us, we're on Atiesh (Alliance) in the <All The Things> guild!|r\n\n\nContributors working on Classic:\n |CFFFFFFFF\nPr3vention, Avella, Mogwai, Crieve and Talonzor |r\n\n\n\nIf we're missing something, please let us know!\n\nStill lots of things to add, but thankfully there is a finite number of things in WoW Classic and TBC Classic, so we should eventually get it all!");
+AboutText:SetText(L["TITLE"] .. " |CFFFFFFFFis a collection tracking addon that shows you where and how to get everything in the game! We have a large community of users on our Discord (link at the bottom) where you can ask questions, submit suggestions as well as report bugs or missing items. If you find something collectible or a quest that isn't documented, you can tell us on the Discord, or for the more technical savvy, we have a Git that you may contribute directly to.\n\nWhile we do strive for completion, there's a lot of stuff getting added into the game each patch, so if we're missing something, please understand that we're a small team trying to keep up with changes as well as collect things ourselves. :D\n\nFeel free to ask me questions when I'm streaming and I'll try my best to answer it, even if it's not directly related to ATT (general WoW addon programming as well).\n\n- |r|C" .. app.Colors.Raid .. "Crieve (DFortun81 on GitHub)|CFFFFFFFF\n\nIf you wish to play with us, we're on Atiesh (Alliance) in the <All The Things> guild!|r\n\n\nContributors working on Classic:\n |CFFFFFFFF\nPr3vention, Avella, Mogwai, Crieve and Talonzor |r\n\n\n\nIf we're missing something, please let us know!\n\nStill lots of things to add, but thankfully there is a finite number of things in WoW Classic and TBC Classic, so we should eventually get it all!");
 AboutText:Show();
 tinsert(settings.MostRecentTab.objects, AboutText);
 end)();

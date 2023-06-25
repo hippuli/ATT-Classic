@@ -2,7 +2,7 @@
 ## Name: ATT-Classic
 ## Notes: Addon for Tracking Collections & Account Completion
 ## Author: Crieve-Sargeras
-## Version: 1.5.1
+## Version: 1.5.2
 ## Interface: 30402
 ## X-Interface: 30402
 ## X-Wago-ID: yQKyY5K7
@@ -12,13 +12,21 @@
 lib\LibStub\LibStub.lua
 lib\CallbackHandler-1.0\CallbackHandler-1.0.lua
 lib\LibDataBroker-1.1\LibDataBroker-1.1.lua
+lib\Colors.lua
+lib\Sort.lua
+lib\Table.lua
+db\Presets.lua
+db\RaceDB.lua
+db\FlightPathDB.lua
+db\Wrath\ExplorationDB.lua
 src\base.lua
+lib\Audio.lua
+db\Wrath\CategoryDB.lua
+db\Wrath\ObjectDB.lua
+src\Cache.lua
 locales\en.lua
 src\Modules\Events.lua
 src\Modules\PVP Ranks.lua
-db\Presets.lua
-db\Wrath\CategoryDB.lua
-db\Wrath\ObjectDB.lua
 locales\en_auto.lua
 locales\es.lua
 locales\de.lua
@@ -29,9 +37,13 @@ locales\pt.lua
 locales\ru.lua
 locales\cn.lua
 db\Wrath\Custom Headers.lua
-db\Wrath\ExplorationDB.lua
-db\FlightPathDB.lua
-db\RaceDB.lua
 Settings.lua
 ATT-Classic.lua
 db\Wrath\Categories.lua
+src\Root.lua
+src\UI\Breadcrumbs.lua
+src\UI\Dailies.lua
+src\UI\Random.lua
+src\UI\Removed With Patch Loot.lua
+src\UI\Soft Reserves.lua
+src\UI\Sync.lua
