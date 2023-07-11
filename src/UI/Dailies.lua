@@ -1,5 +1,7 @@
-do
+-- App locals
 local appName, app = ...;
+
+-- Implementation
 app:GetWindow("Dailies", {
 	parent = UIParent,
 	Silent = true,
@@ -20,7 +22,7 @@ app:GetWindow("Dailies", {
 				back = 1,
 				OnUpdate = function(data)
 					local g = app:BuildSearchResponse(app:GetDataCache().g, "isDaily", 1);
-					if #g > 0 then
+					if g and #g > 0 then
 						data.g = g;
 						data.OnUpdate = nil;
 					end
@@ -37,4 +39,3 @@ app:GetWindow("Dailies", {
 		return false;
 	end
 });
-end

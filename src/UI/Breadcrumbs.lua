@@ -1,5 +1,11 @@
-do
+-- App locals
 local appName, app = ...;
+
+-- Global locals
+local ipairs, tinsert
+	= ipairs, tinsert;
+
+-- Implementation
 app:GetWindow("Breadcrumbs", {
 	parent = UIParent,
 	Silent = true,
@@ -26,7 +32,7 @@ app:GetWindow("Breadcrumbs", {
 						local results = app:BuildSearchResponseForField(app:GetDataCache().g, "isBreadcrumb");
 						if #results > 0 then
 							for i,result in ipairs(results) do
-								table.insert(g, result);
+								tinsert(g, result);
 							end
 						end
 					end
@@ -35,4 +41,3 @@ app:GetWindow("Breadcrumbs", {
 		end
 	end
 });
-end

@@ -1,24 +1,65 @@
-1.5.2 Release Notes
+1.5.3 Release Notes
 Contributions made by Crieve:
-* Summary text now gets "smudged", which is kinda like Dirty, but not as mucky.
-* Fixed an issue with dynamic icons in the new SetRowData function.
-* Soft Reserves, RWP, and Sync all moved to their own UI files.
-* Moved around some initialization code to cache earlier. Moved GetDataCache to directly following Categories.lua so that it can execute during the loading screen.
-* Adjusted the loading order for some source files.
-* Added the Color lib from Retail ATT.
-* Fixed a bug with reporting completed quests with no valid text.
-* Slight improvement to caching with some local variables.
-* Added back /attbreadcrumbs, this lets you find all of the breadcrumbs in ATT!
+* Fixed a bug with GetCurrencyLink.
+* Champion's Seal doesn't drop from Normal Black Knight until after 8.0.
+* Fixed an issue with the "current character" that sometimes caused its realm information to get lost.
+* Fixed an issue with faction-exclusive achievement criteria in Trial of the Champion.
+* Insane in the Membrane now correctly shows up in Classic Era with all of its fancy tech.
+* Added the Horde version of "What a Long, Strange Trip It's Been".
+* Added the StartATTCoroutine function to the frame base class. This allows modules to execute an update call over time.
+* ATT now uses app.frame to get a reference to its hidden event handling frame.
+* Chillpike, Detention Strap, and Voone's Twitchbow are now marked suspicious and may be removed from game already.
+* Added back an improved Auctions Module!
+* Auction Module no longer logs events.
+* Fixed a couple of annoying bugs with the new scrollbar class.
+* Fixed an issue with symbolic linking. (Ironforge Vendor text error bug)
+* Resizing the list is no longer broken.
+* Scrollbar no longer scrolls automatically after the minmax changes every time.
+* Okay fixed it for real this time... probably.
+* Achievement criterias for Trial of the Crusader are now properly distributed to their respective encounters for Wrath Classic.
+* Achievement criterias for Icecrown Citadel are now properly distributed to their respective encounters for Wrath Classic.
+* 25 man TOC achievement criterias were flipped.
+* Added the ability to Extend a Class, effectively making a new class from the old one.
+* Added the ability to use !attsr instead of !sr for when the user has Gargul installed.
+* Everything related to Soft Reserves is now contained within its own module.
+* ADDON_LOADED is better than VARIABLES_LOADED.
+* Slightly adjusted the auction module to refresh its text sooner.
+* You can now use /attu on any targetted NPC to show a mini list of its associated things in addition to its existing functionality where using it on a player will ask them what their ATT is at.
+* Deprecated the use of "/att <command>", where the command also had a shortcut that was something like "/att<command>", but without the space in between. Added the ability to perform a raw search on the addon database by using a command format like "/att f:100" where the key (left side) is equal to the value (right side).
+* The Unit Class now prioritizes the saved variable data in ATT over WoW APIs.
+* A bit of addon restructuring.
+* Updated Keybindings and Shortcuts.
+* Fixed an issue with the build search results function that was building a bit too much information. Prime now forces its data to be calculated when saved variables become available.
+* Replaced all direct references to ATTClassicSettings to _.Settings to make it addon agnostic.
+* Settings are posessive, not inferred.
+* Now caching Horde and Alliance Faction ID.
+* Loremaster achievements no longer recalculate their quests when the list is Updated in Wrath Classic, they now only do that one time.
+* Greatly improved performance of all achievement handlers.
+* Fixed The Loremaster achievements.
+* Attached the respective bandages to Stocking Up and Ultimate Triage.
+* Mercenary of Sholazar is now a meta achievement. Fixed a handful of other achievements.
+* Moved the logic for the pre-wrath custom achievements (fake achievements that ATT calculates itself) for Classic Era and TBC Classic into the addon with a logic gate. Mounts, Factions, and Battle Pet achievements no longer show the full list of things in their tooltips for Wrath Classic and beyond, right click as you could before to see the full (filtered) listing! (this was done for performance reasons)
+* Rebuilt /attmaps for debugging missing mapIDs and moved it to its own UI file.
+* Standardized UI module format.
+* Greatly improved the functionality of the Object Debugger. (accessible via /attobjects) Moved the Object Debugger to its own UI module.
+* Fixed and moved /attquests to its own UI Module file.
+* Added global locales for the Breadcrumbs module.
+* Split up /attunsorted into different modules. NeverImplemented now always shows its never implemented tags.
+* Removed all explicit assignments for the NeverImplemented tag from classic files.
+* Removed all bubble down'd uses of the NEVER_IMPLEMENTED tag when adding things to NYI.
 * ...
-* Added back /attdailies! This shows you all of the dailies
-* Fixed /attrandom!
-* Added the Audio lib from Retail ATT.
-* Greatly improved the performance of contains and indexOf lookups and added the Table lib.
-* Fixed key collection detection for keys with more than one version.
-* Added the Sort lib!
-* You can now Shift+Right Click headers to sort them.
-* otherArr was the classic variable name...
-* Red/Blue Firework is now tagged with their respective faction requirements in TBC/Wrath, but becomes available to both with Cataclysm.
-* You can now once again interact with the character data in the Account Management section.
-* Deleting a character once again refreshes the Sync window.
+* Added Loremaster of Northrend to Outdoor Zones. Parser now handles Dictionaries as IDictionary in most places.
+* Fixed and moved /attra (the Raid Assistant) to its own UI Module file. Fixed an issue with the Unit Class.
+* The CanShowResetInstances is actual trash and doesn't work.
+* You can now use /attsr in a group without master looter, though the group is effectively operating on trust. Added a number of options to the Raid Assistant that will become available when certain APIs are found. Moved the Loot Threshold and Loot Method classes to the Raid Assistant file.
+* The Raid Assistant can now do everything that the retail version of ATT's Raid Assitant can do, plus more!
+* Onyxia's Lair doesn't have a shared lockout in Wrath Classic.
+* Earth, Wind & Fire can currently be completed in Phase 3.
+* Fixed a bug with Trial of the Crusader Tribute chest loot not getting the timeline data.
+* Blizzard decided not to remove Onyxia's Lair (40 man) from Wrath Classic.
+* Attunement to the Core is actually required until 5.4.0.
+* Removed the old Attuned window and all associated guild member checking functionality. (it was too expensive to keep) Added in the Attunements (/attunements) module! You can now check all of your keys and attunements in a single location. NOTE:  This new module does NOT track other player's completion, again, for the same reason listed above.
+* Keys now properly get counted in the attunements list.
+* Fixed a number of issues for Classic Era.
+* Reparsed to mirror changes to all versions of the DB.
 
