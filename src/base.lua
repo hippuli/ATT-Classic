@@ -175,6 +175,20 @@ app.StartATTCoroutine = function(self, ...)
 end
 
 -- API Functions
+local function CloneArray(arr)
+	local clone = {};
+	for i,value in ipairs(arr) do
+		tinsert(clone, value);
+	end
+	return clone;
+end
+local function CloneDictionary(data)
+	local clone = {};
+	for key,value in pairs(data) do
+		clone[key] = value;
+	end
+	return clone;
+end
 local function CloneReference(group)
 	local clone = {};
 	if group.g then
@@ -188,6 +202,8 @@ local function CloneReference(group)
 	end
 	return setmetatable(clone, { __index = group });
 end
+app.CloneArray = CloneArray;
+app.CloneDictionary = CloneDictionary;
 app.CloneReference = CloneReference;
 
 function app:ShowPopupDialog(msg, callback)
@@ -388,7 +404,7 @@ local constructor = function(id, t, typeID)
 end
 
 -- Creates a Base Object Table which will evaluate the provided set of 'fields' (each field value being a keyed function)
-local classDefinitions = {};
+local classDefinitions, _cache = {};
 app.BaseObjectFields = function(fields, className)
 	if not className then
 		print("A Class Name must be declared when using BaseObjectFields");
@@ -414,17 +430,9 @@ app.BaseObjectFields = function(fields, className)
 	return {
 		__index = function(t, key)
 			_cache = rawget(class, key);
-			return _cache and _cache(t);
+			if _cache then return _cache(t); end
 		end
 	};
-	--[[
-	return {
-		__index = function(t, key)
-			_cache = rawget(fields, key);
-			return _cache and _cache(t);
-		end
-	};
-	]]--
 end
 app.BaseClass = app.BaseObjectFields(nil, "BaseClass");
 

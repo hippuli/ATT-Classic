@@ -208,7 +208,7 @@ end
 app:GetWindow("Random", {
 	parent = UIParent,
 	Silent = true,
-	OnInit = function(self)
+	OnInit = function(self, handlers)
 		SLASH_ATTRANDOM1 = "/attran";
 		SLASH_ATTRANDOM2 = "/attrandom";
 		SlashCmdList["ATTRANDOM"] = function(cmd)
@@ -220,8 +220,7 @@ app:GetWindow("Random", {
 		
 		-- For this window's options to work, Prime needs to be fully initialized.
 		local prime = app:GetWindow("Prime");
-		prime:DefaultRebuild();
-		prime:DefaultUpdate(true);
+		if not prime.data then prime:ForceUpdate(); end
 	
 		self.defaultHeader = {
 			text = "Random - Go Get 'Em!",

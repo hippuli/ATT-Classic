@@ -5,7 +5,8 @@ local appName, app = ...;
 app:GetWindow("Quests", {
 	parent = UIParent,
 	Silent = true,
-	OnInit = function(self)
+	AllowCompleteSound = true,
+	OnInit = function(self, handlers)
 		SLASH_ATTQUESTS1 = "/attquests";
 		SlashCmdList["ATTQUESTS"] = function(cmd)
 			self:Toggle();

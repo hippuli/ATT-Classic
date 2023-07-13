@@ -27,6 +27,7 @@ end
 -- These are the fields we store.
 for w,f in ipairs({
 	"achievementID",
+	"achievementCategoryID",
 	"creatureID",
 	"currencyID",
 	"currencyIDAsCost",
@@ -35,10 +36,12 @@ for w,f in ipairs({
 	"flightPathID",
 	"headerID",
 	"illusionID",
+	"instanceID",
 	"itemID",
 	"itemIDAsCost",
 	"mapID",
 	"objectID",
+	"professionID",
 	"questID",
 	"requireSkill",
 	"sourceQuestID",
@@ -100,6 +103,9 @@ local fieldConverters = {
 	["achievementID"] = function(group, value)
 		CacheField(group, "achievementID", value);
 	end,
+	["achievementCategoryID"] = function(group, value)
+		CacheField(group, "achievementCategoryID", value);
+	end,
 	["achID"] = function(group, value)
 		CacheField(group, "achievementID", value);
 	end,
@@ -125,13 +131,22 @@ local fieldConverters = {
 	["illusionID"] = function(group, value)
 		CacheField(group, "illusionID", value);
 	end,
+	["instanceID"] = function(group, value)
+		CacheField(group, "instanceID", value);
+	end,
 	["itemID"] = function(group, value)
 		if group.isToy then CacheField(group, "toyID", value); end
+		CacheField(group, "itemID", value);
+	end,
+	["otherItemID"] = function(group, value)
 		CacheField(group, "itemID", value);
 	end,
 	["mapID"] = cacheMapID,
 	["npcID"] = cacheCreatureID,
 	["objectID"] = cacheObjectID,
+	["professionID"] = function(group, value)
+		CacheField(group, "professionID", value);
+	end,
 	["questID"] = function(group, value)
 		CacheField(group, "questID", value);
 	end,
