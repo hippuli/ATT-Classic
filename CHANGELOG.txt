@@ -1,30 +1,78 @@
-1.5.4 Release Notes
+1.5.5 Release Notes
 Contributions made by Crieve:
-* Defense Protocol Beta: Trial of the Champion achievements now properly faction filtering.
-* Added the "sins" field to Parser. When an instance has a different name than shows up in the saved instances list, you can now provide a "sins" field, short for "Saved Instance Substitutions", directly on an instance in its file. This tells the addon to also scan the lockout data for these alternative names, making it possible to link the raid to the saved instance data. Since localizations are forced to a value when locked, all sins will be checked regardless of language. This should fix an issue for players that play using different locales with the same account.
-* The AutomaticHeader now supports quest tracking if one is given a questID.
-* ...
-* Deadmines is now properly sorted with the rest of the dungeons in Classic.
-* Updated the calculation for cost total for objectives to include the total number required. This should prevent quest items from saying "oh hey I'm done!" when they've still got a job to do or you need more than 1. Some argent tournament quests now use providers instead of cost for their objectives.
-* Discarded Soul Crystal no longer shows completed when mousing over the object if you haven't finished the objective yet.
-* Parser can now execute an OnInit function when creating an object and no longer calls the g function instead of assigning directly to g. (This should help with Classic unflagging collectible states for items when their filterIDs change since their OnUpdate doesn't immediately get called anymore.) You can now reference appName in dynamic functions, objects, and headers.
-* Items whose filters change later are now reflected in Classic versions of ATT's database. Added filterForRWP in place of an OnUpdate for certain Mail items that become Plate items later. Introduced the Item Filters for RWP file to properly handle changes to filterIDs for items.
-* Keys (for TBC Classic) and the Commander encounter in the Nexus now utilize the new OnInit function.
-* Encounter class now supports WithQuest.
-* ...
-* All windows now remember their positions as well as whether they were open at the time the game reloaded or the player logged out. Significantly reduced the amount of overhead caused by doing things in the game that would otherwise cause an update to the windows. Windows can now exclude themselves from being updated by traditional event handling. Event handlers are now built directly into the GetWindow function and are passed as an argument to the OnInit function.
-* The auctions module is once again compatible with the new window updates.
-* When you accept a quest, if the quest had previously used a temp name like "Quest #XXX", then it will uncache and allow its name to be harvested again.
-* Fixed a bunch of questing lag when having the prime window open.
-* The mini list now does a full delayed update when you complete a quest.
-* Significantly improved the loading sequence and made it so that collectibles now properly get queued up for collection / removal before playing fanfare. This should prevent those annoying RWP "added to collection" / "removed from collection" messages when zoning into a new area or logging in for the first time during a session.
-* Fixed the annoying bug where changing a filter would sometimes trigger the 100% complete jingle.
-* Added Glub to Wrath Classic.
-* Added helper functions for cloning simple structures.
-* Slightly simplified the CreateMiniListForGroup function and added the ability for an object to call OnPopout.
-* Fixed a bug where dynamic profession popouts failed to recover correctly.
-* Fixed a bug with SearchForSourcePath.
-* Fixed Insane in the Membrane's icon for Classic Era.
-* Updated the format of Insane in the Membrane to the experimental Classic version. Added BNET account information to your characters when you login to them. (for future syncing features) Removed all options that dealt with automatic showing. By default, frames are now restored that were previously shown.
-* ReceiveSyncRequest no longer incorrectly detects bnet accounts.
+* Report to Lanthan Perilon is now marked as a Breadcrumb quest.
+* Synchronization now almost works with BNET!
+* Synchronization now works with Battle.net!
+* Since addon messages can only handle so much data, when you attempt to manually sync with a non-bnet attached account, it will first try to link with the account instead of queueing up a ton of addon message chunks.
+* Whoops! TimeStamps doesn't exist for all characters yet, just the ones used in syncs.
+* Class is no longer incorrectly a function on the current character object.
+* Added a SetCollected function that automatically uses AddToCollection and RemoveFromCollection.
+* Updated collectible and account wide settings to use a set of variables contained in Settings rather than on the app itself.
+* Adjusted SetAchievementCollected for Classic.
+* ATT window tooltips will now always include Creature lists if available (a lot of information is determined by what Creatures/NPCs are 'assigned' to a given Thing, so allowing users to purposely hide that contextual information can lead to a lot of confusion)
+* Fixed a bug with the RWP collection detection for Tabard of Flame. (and simplified the logic gates)
+* A number of collectible types now support the SetCollected function.
+* Exploration and Titles now also use the SetCollected helper.
+* The linking with accounts feature still isn't working 100%, reverting that last change.
+* Removed the missing spell restriction for Inscription. (it was in place while I was working on it, now I WANT to know if you guys know something I don't!)
+* Fixed the Magnificent Flying Carpet spellID when opening Tailoring. It was flagging and unflagging it as learned.
+* Pre-emptively adding the spellID for the Frost Flying Carpet.
+* Only notify when something new to your collection (with respect to account wide settings) is collected.
+* Warlock pet spell grimoires were removed with 3.0.1.
+* Added Weapon Masters for Classic. (Removed with Cataclysm)
+* Added Riding Trainers for Classic Era.
+* Removed two unnecessary wow apis for spell detection.
+* SetCollectedForSubType no longer incorrectly triggers AddToCollection notifications when account wide is turned on and the character has the thing on their account already.
+* Updated the NEW_RECIPE_LEARNED event to prefer a version of the spell without the itemID.
+* Moved Unsorted to its own UI Module!
+* Updated categories.
+* Now that prime persists its data, no longer need to assign this manually.
+* Updated quest icons to a higher res version. Moved HQT and HAT windows to their own UI modules.
+* Moved Never Implemented to its own UI module.
+* Added timeline data to the new Naxx achievements.
+* Fixed a syncing issue where the keys were being converted into strings.
+* Some Scholomance BOEs never got removed, just were uber rares.
+* Added a shortcut for achWithFaction to simplify the main files. (might be temporary, we'll see)
+* Added missing timeline data to all achievements that previously did not use classicAch to whitelist themselves for Classic. Removed the helper shortcut "classicAch" now that all timelining shenanigans has been taken care of.
+* Added new version of parser.
+* Fixed the mapIDs for Glory of the Raider.
+* Fixed the incredibly annoying scrollbar stuck on resizing bug when the scrollbar is hidden from resizing too small.
+* Added the achWithReps helper shortcut to assist with cleaning up explicit references to CommonAchievementHandlers.
+* For Classic, achievements now automatically attach the necessary runners based on detected fields.
+* Deprecated ANY_ITEM_COST and ALL_ITEM_COSTS.
+* Shifted around a couple of handlers.
+* Disabled LibDeflate integration until I figure out why it keeps generating garbled data packages.
+* When looking at /attnyi, you can now always seen the things marked as never implemented without needing to activate Debug Mode.
+* Added Felvine Shard object data.
+* Added some missing scholomance objectIDs.
+* Fixed a couple of fields for the Key to Scholomance quest.
+* Fixed the Barov deed tooltips.
+* More missing Scholo object data pieces.
+* Agent of the Shen'dralar fixed again for the 10th time?
+* Chunks are now split into batches rather than attempting to send them all at once.
+* Added a button to show the sync window in the settings menu.
+* Fixed yet another issue with the syncing.
+* For real this time, I promise!
+* Fixed achWithReps and added the Crystal Ward.
+* Object localization has been reconfigured to be exported by Parser based on the needs of the targetted database. The structure of the input file (ObjectDB) now supports proper localization structures that mirror how they are done for custom headers. All localization provided by objects is now contained within ObjectDB.
+* Removed old style object localization.
+* Added a few more mobs for mana remnants.
+* Added object information for Smuggled Mana Cell.
+* Added /atttoys as a UI module. (categorizes all toys) Created the Dynamic Category class to generate and store the content of specified windows.
+* Added the dynamic category for /atttitles and its associated UI module.
+* Added the /attmounts dynamic category. Made it so that dynamic categories no longer cause a forced redraw when rendered in Prime for the first time per session.
+* Added the /attpets dynamic category.
+* Dynamic categories with 100% completion will now properly hide themselves.
+* The dynamic categories now refresh when changing filters.
+* Fixed a double update caused by Prime referencing the dynamic category windows.
+* Couldn't get LibDeflate to work sadly. Ah well.
+* Added dynamic categories for Factions and Flight Paths.
+* Rearranged the Prime window.
+* Added the Achievements dynamic category.
+* Moved BuildCategory to the GetWindow section.
+* Updated the sync window.
+* The data package is no longer chopped into pieces. All or nothin'!
+* Removed the temp data methods.
+* The search filter is now stored on the settings window's saved variables rather than the addon's.
+* Rebuilt categories for all expansion variants.
 

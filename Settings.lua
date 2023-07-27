@@ -12,6 +12,37 @@ local ATTClassicSettings, ATTClassicSettingsPerCharacter = {}, {};
 -- The Settings Frame
 local settings = CreateFrame("FRAME", app:GetName() .. "-Settings", InterfaceOptionsFramePanelContainer or UIParent, BackdropTemplateMixin and "BackdropTemplate");
 app.Settings = settings;
+settings.AccountWide = {
+	Achievements = true,
+	BattlePets = true,
+	Deaths = true,
+	Exploration = true,
+	FlightPaths = true,
+	Illusions = true,
+	Mounts = true,
+	PVPRanks = true,
+	Quests = true,
+	Recipes = true,
+	Reputations = true,
+	RWP = true,
+	Titles = true,
+	Toys = true,
+};
+settings.Collectibles = {
+	Achievements = true,
+	BattlePets = true,
+	Exploration = true,
+	FlightPaths = true,
+	Illusions = true,
+	Loot = true,
+	Mounts = true,
+	Quests = true,
+	Recipes = true,
+	Reputations = true,
+	RWP = true,
+	Titles = true,
+	Toys = true,
+};
 settings.name = app:GetName();
 settings.MostRecentTab = nil;
 settings:Hide();
@@ -93,7 +124,6 @@ local TooltipSettingsBase = {
 	__index = {
 		["Auto:AuctionList"] = true,
 		["Auto:ProfessionList"] = true,
-		["Auto:Sync"] = true,
 		["Integrate:LFGBulletinBoard"] = true,
 		["Celebrate"] = true,
 		["Channel"] = "master",
@@ -456,35 +486,16 @@ settings.UpdateMode = function(self)
 		app.RequiredSkillFilter = app.NoFilter;
 		app.RequireFactionFilter = app.NoFilter;
 		app.RequireEventFilter = app.NoFilter;
-
-		app.AccountWideAchievements = true;
-		app.AccountWideBattlePets = true;
-		app.AccountWideDeaths = true;
-		app.AccountWideExploration = true;
-		app.AccountWideFlightPaths = true;
-		app.AccountWideIllusions = true;
-		app.AccountWideMounts = true;
-		app.AccountWidePVPRanks = true;
-		app.AccountWideQuests = true;
-		app.AccountWideRecipes = true;
-		app.AccountWideReputations = true;
-		app.AccountWideRWP = true;
-		app.AccountWideTitles = true;
-		app.AccountWideToys = true;
-
-		app.CollectibleAchievements = true;
-		app.CollectibleBattlePets = true;
-		app.CollectibleExploration = true;
-		app.CollectibleFlightPaths = true;
-		app.CollectibleIllusions = true;
-		app.CollectibleLoot = true;
-		app.CollectibleMounts = true;
-		app.CollectibleQuests = true;
-		app.CollectibleRecipes = true;
-		app.CollectibleReputations = true;
-		app.CollectibleRWP = true;
-		app.CollectibleTitles = true;
-		app.CollectibleToys = true;
+		
+		local accountWideSettings = self.AccountWide;
+		for key,value in pairs(accountWideSettings) do
+			accountWideSettings[key] = true;
+		end
+		
+		local collectibleSettings = self.Collectibles;
+		for key,value in pairs(collectibleSettings) do
+			collectibleSettings[key] = true;
+		end
 		
 		-- Modules
 		app.Modules.PVPRanks.SetCollectible(true);
@@ -492,34 +503,15 @@ settings.UpdateMode = function(self)
 		app.VisibilityFilter = app.ObjectVisibilityFilter;
 		app.GroupFilter = app.FilterItemClass;
 
-		app.AccountWideAchievements = self:Get("AccountWide:Achievements");
-		app.AccountWideBattlePets = self:Get("AccountWide:BattlePets");
-		app.AccountWideDeaths = self:Get("AccountWide:Deaths");
-		app.AccountWideExploration = self:Get("AccountWide:Exploration");
-		app.AccountWideFlightPaths = self:Get("AccountWide:FlightPaths");
-		app.AccountWideIllusions = self:Get("AccountWide:Illusions");
-		app.AccountWideMounts = self:Get("AccountWide:Mounts");
-		app.AccountWidePVPRanks = self:Get("AccountWide:PVPRanks");
-		app.AccountWideQuests = self:Get("AccountWide:Quests");
-		app.AccountWideRecipes = self:Get("AccountWide:Recipes");
-		app.AccountWideReputations = self:Get("AccountWide:Reputations");
-		app.AccountWideRWP = self:Get("AccountWide:RWP");
-		app.AccountWideTitles = self:Get("AccountWide:Titles");
-		app.AccountWideToys = self:Get("AccountWide:Toys");
-
-		app.CollectibleAchievements = self:Get("Thing:Achievements");
-		app.CollectibleBattlePets = self:Get("Thing:BattlePets");
-		app.CollectibleExploration = self:Get("Thing:Exploration");
-		app.CollectibleFlightPaths = self:Get("Thing:FlightPaths");
-		app.CollectibleIllusions = self:Get("Thing:Illusions");
-		app.CollectibleLoot = self:Get("Thing:Loot");
-		app.CollectibleMounts = self:Get("Thing:Mounts");
-		app.CollectibleQuests = self:Get("Thing:Quests");
-		app.CollectibleRecipes = self:Get("Thing:Recipes");
-		app.CollectibleReputations = self:Get("Thing:Reputations");
-		app.CollectibleRWP = self:Get("Thing:RWP");
-		app.CollectibleTitles = self:Get("Thing:Titles");
-		app.CollectibleToys = self:Get("Thing:Toys");
+		local accountWideSettings = self.AccountWide;
+		for key,value in pairs(accountWideSettings) do
+			accountWideSettings[key] = self:Get("AccountWide:" .. key);
+		end
+		
+		local collectibleSettings = self.Collectibles;
+		for key,value in pairs(collectibleSettings) do
+			collectibleSettings[key] = self:Get("Thing:" .. key);
+		end
 		
 		-- Modules
 		app.Modules.PVPRanks.SetCollectible(self:Get("Thing:PVPRanks"));
@@ -551,10 +543,10 @@ settings.UpdateMode = function(self)
 	
 	local filters = ATTClassicSettingsPerCharacter.Filters;
 	for filterID,state in pairs({
-		[100] = app.CollectibleMounts,
-		[101] = app.CollectibleBattlePets,
-		[102] = app.CollectibleToys,
-		[200] = app.CollectibleRecipes,
+		[100] = self.Collectibles.Mounts,
+		[101] = self.Collectibles.BattlePets,
+		[102] = self.Collectibles.Toys,
+		[200] = self.Collectibles.Recipes,
 	}) do
 		filters[filterID] = state;
 	end
@@ -2368,7 +2360,6 @@ local ids = {
 	["achievementID"] = "Achievement ID",
 	["artID"] = "Art ID",
 	["creatureID"] = "Creature ID",
-	["creatures"] = "Creatures List",
 	["Coordinates"] = "Coordinates",
 	["currencyID"] = "Currency ID",
 	["Descriptions"] = "Descriptions",
@@ -2391,7 +2382,7 @@ local ids = {
 	["spellID"] = "Spell ID",
 };
 local last = nil;
-for _,id in pairs({"achievementID","artID", "creatureID","creatures","Coordinates","currencyID","Descriptions","displayID","explorationID","factionID","filterID","flightPathID"}) do
+for _,id in pairs({"achievementID","artID", "creatureID","Coordinates","currencyID","Descriptions","displayID","explorationID","factionID","filterID","flightPathID"}) do
 	local filter = settings:CreateCheckBox(ids[id],
 	function(self)
 		self:SetChecked(settings:GetTooltipSetting(id));
@@ -2534,29 +2525,8 @@ end)();
 ------------------------------------------
 (function()
 local tab = settings:CreateTab("Features");
-
-local SyncLabel = settings:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge");
-SyncLabel:SetPoint("TOPLEFT", line, "BOTTOMLEFT", 330, -8);
-SyncLabel:SetJustifyH("LEFT");
-SyncLabel:SetText("Account Synchronization");
-SyncLabel:Show();
-tinsert(settings.MostRecentTab.objects, SyncLabel);
-
-local AutomaticallySyncAccountDataCheckBox = settings:CreateCheckBox("Automatically Sync Account Data",
-function(self)
-	self:SetChecked(settings:GetTooltipSetting("Auto:Sync"));
-end,
-function(self)
-	local checked = self:GetChecked();
-	settings:SetTooltipSetting("Auto:Sync", checked);
-	if checked then app:Synchronize(true); end
-end);
-AutomaticallySyncAccountDataCheckBox:SetATTTooltip("Enable this option if you want ATT to attempt to automatically synchronize account data between accounts when logging in or reloading the UI.");
-AutomaticallySyncAccountDataCheckBox:SetPoint("TOPLEFT", SyncLabel, "BOTTOMLEFT", 4, 0);
-
 local CelebrationsLabel = settings:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge");
-CelebrationsLabel:SetPoint("TOP", AutomaticallySyncAccountDataCheckBox, "BOTTOM", 0, -8);
-CelebrationsLabel:SetPoint("LEFT", SyncLabel, "LEFT", 0, 0);
+CelebrationsLabel:SetPoint("TOPLEFT", line, "BOTTOMLEFT", 330, -8);
 CelebrationsLabel:SetJustifyH("LEFT");
 CelebrationsLabel:SetText("Celebrations & Sound Effects");
 CelebrationsLabel:Show();
@@ -2689,6 +2659,23 @@ temporaryText:SetJustifyH("LEFT");
 temporaryText:SetText("The sync tool has temporarily left this menu.\n\nYou can still access it via the command: /attsync\n\n\nIf someone knows what started causing the window to freeze when you changed to a different addon's settings context, hit me up.\n\nCool things are in development that should make this feature a whole lot better!");
 temporaryText:Show();
 tinsert(settings.MostRecentTab.objects, temporaryText);
+
+local f = CreateFrame("Button", nil, settings, "OptionsButtonTemplate");
+f:SetPoint("TOP", temporaryText, "BOTTOM", 0, -8);
+f:SetPoint("LEFT", line, "LEFT", 8, -8);
+f:SetPoint("RIGHT", line, "LEFT", 300, -8);
+f:SetText("Open the Sync Window");
+f:SetHeight(30);
+f:RegisterForClicks("AnyUp");
+f:SetScript("OnClick", function()
+	local syncWindow = app:GetWindow("Synchronization");
+	if syncWindow then
+		if SettingsPanel and SettingsPanel:IsShown() then SettingsPanel:Hide(); end
+		syncWindow:Show();
+	end
+end);
+f:SetATTTooltip("Click this button to open the Sync Window");
+tinsert(settings.MostRecentTab.objects, f);
 
 function tab:InitializeSyncWindow()
 	-- Synchronization Window

@@ -2,7 +2,7 @@
 ## Name: ATT-Classic
 ## Notes: Addon for Tracking Collections & Account Completion
 ## Author: Crieve-Sargeras
-## Version: 1.5.4
+## Version: 1.5.5
 ## Interface: 30402
 ## X-Interface: 30402
 ## X-Wago-ID: yQKyY5K7
@@ -40,12 +40,19 @@ db\Wrath\Custom Headers.lua
 Settings.lua
 ATT-Classic.lua
 db\Wrath\Categories.lua
-src\Root.lua
+src\UI\Achievements.lua
 src\UI\Attunements.lua
 src\UI\Auctions.lua
+src\UI\Battle Pets.lua
 src\UI\Breadcrumbs.lua
 src\UI\Dailies.lua
+src\UI\Factions.lua
+src\UI\Flight Paths.lua
+src\UI\Hidden Achievement Triggers.lua
+src\UI\Hidden Quest Triggers.lua
 src\UI\Maps.lua
+src\UI\Mounts.lua
+src\UI\Never Implemented.lua
 src\UI\Objects.lua
 src\UI\Quests.lua
 src\UI\Raid Assistant.lua
@@ -53,3 +60,7 @@ src\UI\Random.lua
 src\UI\Removed With Patch Loot.lua
 src\UI\Soft Reserves.lua
 src\UI\Sync.lua
+src\UI\Titles.lua
+src\UI\Toys.lua
+src\UI\Unsorted.lua
+src\Root.lua
