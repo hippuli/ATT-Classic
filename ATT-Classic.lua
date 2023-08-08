@@ -35,8 +35,8 @@ BINDING_NAME_ALLTHETHINGS_REROLL_RANDOM = L["REROLL_RANDOM"];
 -- While this may seem silly, caching references to commonly used APIs is actually a performance gain...
 local C_DateAndTime_GetServerTimeLocal
 	= C_DateAndTime.GetServerTimeLocal;
-local ipairs, tinsert, pairs, rawset, rawget
-	= ipairs, tinsert, pairs, rawset, rawget;
+local ipairs, tinsert, pairs, rawset, rawget, pcall
+	= ipairs, tinsert, pairs, rawset, rawget, pcall;
 local C_Map_GetMapInfo = C_Map.GetMapInfo;
 local C_Map_GetPlayerMapPosition = C_Map.GetPlayerMapPosition;
 local GetAchievementInfo = _G["GetAchievementInfo"];
@@ -51,6 +51,7 @@ local GetItemCount = _G["GetItemCount"];
 local InCombatLockdown = _G["InCombatLockdown"];
 local GetSpellInfo, IsPlayerSpell, IsSpellKnown, IsSpellKnownOrOverridesKnown, IsTitleKnown = 
 	  GetSpellInfo, IsPlayerSpell, IsSpellKnown, IsSpellKnownOrOverridesKnown, IsTitleKnown;
+local C_QuestLog_GetAllCompletedQuestIDs = C_QuestLog.GetAllCompletedQuestIDs;
 local ALLIANCE_FACTION_ID = Enum.FlightPathFaction.Alliance;
 local HORDE_FACTION_ID = Enum.FlightPathFaction.Horde;
 
@@ -370,6 +371,12 @@ GameTooltipModel.TrySetModel = function(self, reference)
 	GameTooltipModel.HideAllModels(self);
 	if app.Settings:GetTooltipSetting("Models") then
 		self.lastModel = reference;
+		local displayInfo = reference.displayInfo;
+		if displayInfo then
+			if GameTooltipModel.TrySetDisplayInfo(self, reference, displayInfo) then
+				return true;
+			end
+		end
 		if reference.qgs then
 			if #reference.qgs > 1 then
 				local displayInfo = {};
@@ -681,44 +688,47 @@ local function BuildGroups(parent)
 	end
 end
 local function BuildSourceText(group, l, skip)
-	local parent = group.parent;
-	if parent then
-		if not group.itemID and not skip and (parent.key == "filterID" or parent.key == "spellID" or ((parent.headerID or (parent.spellID and (group.categoryID or group.tierID)))
-			and ((parent.headerID == app.HeaderConstants.VENDORS or parent.headerID == app.HeaderConstants.QUESTS or parent.headerID == app.HeaderConstants.WORLD_BOSSES) or (parent.parent and parent.parent.parent)))) then
-			return BuildSourceText(parent.parent, 5, skip) .. DESCRIPTION_SEPARATOR .. (group.text or RETRIEVING_DATA) .. " (" .. (parent.text or RETRIEVING_DATA) .. ")";
-		end
-		if group.headerID then
-			if group.headerID == app.HeaderConstants.ZONE_DROPS then
-				if group.crs and #group.crs == 1 then
-					return BuildSourceText(parent, l + 1, skip) .. DESCRIPTION_SEPARATOR .. (app.NPCNameFromID[group.crs[1]] or RETRIEVING_DATA) .. " (Drop)";
+	if group then
+		local parent = group.parent;
+		if parent then
+			if not group.itemID and not skip and (parent.key == "filterID" or parent.key == "spellID" or ((parent.headerID or (parent.spellID and (group.categoryID or group.tierID)))
+				and ((parent.headerID == app.HeaderConstants.VENDORS or parent.headerID == app.HeaderConstants.QUESTS or parent.headerID == app.HeaderConstants.WORLD_BOSSES) or (parent.parent and parent.parent.parent)))) then
+				return BuildSourceText(parent.parent, 5, skip) .. DESCRIPTION_SEPARATOR .. (group.text or RETRIEVING_DATA) .. " (" .. (parent.text or RETRIEVING_DATA) .. ")";
+			end
+			if group.headerID then
+				if group.headerID == app.HeaderConstants.ZONE_DROPS then
+					if group.crs and #group.crs == 1 then
+						return BuildSourceText(parent, l + 1, skip) .. DESCRIPTION_SEPARATOR .. (app.NPCNameFromID[group.crs[1]] or RETRIEVING_DATA) .. " (Drop)";
+					end
+					return BuildSourceText(parent, l + 1, skip) .. DESCRIPTION_SEPARATOR .. (group.text or RETRIEVING_DATA);
 				end
-				return BuildSourceText(parent, l + 1, skip) .. DESCRIPTION_SEPARATOR .. (group.text or RETRIEVING_DATA);
+				if parent.difficultyID then
+					return BuildSourceText(parent, l + 1, skip);
+				end
+				if parent.parent then
+					return BuildSourceText(parent, l + 1, skip) .. DESCRIPTION_SEPARATOR .. (group.text or RETRIEVING_DATA);
+				end
 			end
-			if parent.difficultyID then
-				return BuildSourceText(parent, l + 1, skip);
+			if group.key == "criteriaID" and group.achievementID then
+				local tooltipText = achievementTooltipText[group.achievementID];
+				if tooltipText then
+					return BuildSourceText(parent, 5, group.itemID or skip) .. " (" .. tooltipText .. ")";
+				else
+					return BuildSourceText(parent, 5, group.itemID or skip);
+				end
 			end
-			if parent.parent then
-				return BuildSourceText(parent, l + 1, skip) .. DESCRIPTION_SEPARATOR .. (group.text or RETRIEVING_DATA);
+			if parent.key == "categoryID" or parent.key == "tierID" or group.key == "filterID" or group.key == "spellID" or group.key == "encounterID" or (parent.key == "mapID" and group.key == "npcID") then
+				return BuildSourceText(parent, 5, skip) .. DESCRIPTION_SEPARATOR .. (group.text or RETRIEVING_DATA);
 			end
-		end
-		if group.key == "criteriaID" and group.achievementID then
-			local tooltipText = achievementTooltipText[group.achievementID];
-			if tooltipText then
-				return BuildSourceText(parent, 5, group.itemID or skip) .. " (" .. tooltipText .. ")";
+			if l < 1 then
+				return BuildSourceText(parent, l + 1, group.itemID or skip);
 			else
-				return BuildSourceText(parent, 5, group.itemID or skip);
+				return BuildSourceText(parent, l + 1, group.itemID or skip) .. " > " .. (group.text or RETRIEVING_DATA);
 			end
 		end
-		if parent.key == "categoryID" or parent.key == "tierID" or group.key == "filterID" or group.key == "spellID" or group.key == "encounterID" or (parent.key == "mapID" and group.key == "npcID") then
-			return BuildSourceText(parent, 5, skip) .. DESCRIPTION_SEPARATOR .. (group.text or RETRIEVING_DATA);
-		end
-		if l < 1 then
-			return BuildSourceText(parent, l + 1, group.itemID or skip);
-		else
-			return BuildSourceText(parent, l + 1, group.itemID or skip) .. " > " .. (group.text or RETRIEVING_DATA);
-		end
+		return group.text or RETRIEVING_DATA;
 	end
-	return group.text or RETRIEVING_DATA;
+	return L.TITLE;
 end
 local function BuildSourceTextForChat(group, l)
 	if group.parent then
@@ -847,135 +857,7 @@ local function GetDeepestRelativeValue(group, field)
 end
 
 -- Quest Completion Lib
-local DirtyQuests = {};
-local IgnoreErrorQuests = {
-	[1476]=1,	-- Hearts of the Pure (Horde Pre-req for the Undercity Succubus Binding quest)
-	[1474]=1,	-- The Binding (Succubus) [Undercity]
-	[1508]=1,	-- Blind Cazul (Horde Pre-req for the Orgrimmar Succubus Binding quest)
-	[1509]=1,	-- News of Dogran (1/2) (Horde Pre-req for the Orgrimmar Succubus Binding quest)
-	[1510]=1,	-- News of Dogran (2/2) (Horde Pre-req for the Orgrimmar Succubus Binding quest)
-	[1511]=1,	-- Ken'zigla's Draught (Horde Pre-req for the Orgrimmar Succubus Binding quest)
-	[1515]=1,	-- Dogran's Captivity (Horde Pre-req for the Orgrimmar Succubus Binding quest)
-	[1512]=1,	-- Love's Gift (Horde Pre-req for the Orgrimmar Succubus Binding quest)
-	[1513]=1,	-- The Binding (Succubus) [Orgrimmar]
-	[1738]=1,	-- Heartswood (Alliance Pre-req for the Stormwind City Succubus Binding quest)
-	[1739]=1,	-- The Binding (Succubus) [Stormwind City]
-	[1516]=1, 	-- Call of Earth (1/3 Durotar)
-	[1519]=1, 	-- Call of Earth (1/3 Mulgore)
-	[9449]=1, 	-- Call of Earth (1/3 Ammen Vale)
-	[555]=1,	-- Soothing Turtle Bisque (A)
-	[7321]=1,	-- Soothing Turtle Bisque (H)
-	[3630]=1,	-- Gnome Engineering [A]
-	[3632]=1,	-- Gnome Engineering [A]
-	[3634]=1,	-- Gnome Engineering [H]
-	[3635]=1,	-- Gnome Engineering [H]
-	[3637]=1,	-- Gnome Engineering [H]
-	[3526]=1,	-- Goblin Engineering [H]
-	[3629]=1,	-- Goblin Engineering [A]
-	[3633]=1,	-- Goblin Engineering [H]
-	[4181]=1,	-- Goblin Engineering [A]
-	[5517]=1,	-- Chromatic Mantle of the Dawn
-	[5521]=1,	-- Chromatic Mantle of the Dawn
-	[5524]=1,	-- Chromatic Mantle of the Dawn
-	[5504]=1,	-- Mantles of the Dawn
-	[5507]=1,	-- Mantles of the Dawn
-	[5513]=1,	-- Mantles of the Dawn
-	[7170]=1,	-- Earned Reverence (Alliance)
-	[7165]=1,	-- Earned Reverence (Horde)
-	[7171]=1,	-- Legendary Heroes (Alliance)
-	[7166]=1,	-- Legendary Heroes (Horde)
-	[7168]=1,	-- Rise and Be Recognized (Alliance)
-	[7163]=1,	-- Rise and Be Recognized (Horde)
-	[7172]=1,	-- The Eye of Command (Alliance)
-	[7167]=1,	-- The Eye of Command (Horde)
-	[7164]=1,	-- Honored Amongst the Clan
-	[7169]=1,	-- Honored Amongst the Guard
-	[8870]=1,	-- The Lunar Festival
-	[8871]=1,	-- The Lunar Festival
-	[8872]=1,	-- The Lunar Festival
-	[8873]=1,	-- The Lunar Festival
-	[8874]=1,	-- The Lunar Festival
-	[8875]=1,	-- The Lunar Festival
-	[8700]=1,	-- Band of Unending Life
-	[8692]=1,	-- Cloak of Unending Life
-	[8708]=1,	-- Mace of Unending Life
-	[8704]=1,	-- Signet of the Unseen Path
-	[8696]=1,	-- Cloak of the Unseen Path
-	[8712]=1,	-- Scythe of the Unseen Path
-	[8699]=1,	-- Band of Vaulted Secrets
-	[8691]=1,	-- Drape of Vaulted Secrets
-	[8707]=1,	-- Blade of Vaulted Secrets
-	[8703]=1,	-- Ring of Eternal Justice
-	[8695]=1,	-- Cape of Eternal Justice
-	[8711]=1,	-- Blade of Eternal Justice
-	[8697]=1,	-- Ring of Infinite Wisdom
-	[8689]=1,	-- Shroud of Infinite Wisdom
-	[8705]=1,	-- Gavel of Infinite Wisdom
-	[8701]=1,	-- Band of Veiled Shadows
-	[8693]=1,	-- Cloak of Veiled Shadows
-	[8709]=1,	-- Dagger of Veiled Shadows
-	[8698]=1,	-- Ring of the Gathering Storm
-	[8690]=1,	-- Cloak of the Gathering Storm
-	[8706]=1,	-- Hammer of the Gathering Storm
-	[8702]=1,	-- Ring of Unspoken Names
-	[8694]=1,	-- Shroud of Unspoken Names
-	[8710]=1,	-- Kris of Unspoken Names
-	[8556]=1,	-- Signet of Unyielding Strength
-	[8557]=1,	-- Drape of Unyielding Strength
-	[8558]=1,	-- Sickle of Unyielding Strength
-	[9520]=1,	-- Diabolical Plans [Alliance]
-	[9535]=1,	-- Diabolical Plans [Horde]
-	[9522]=1,	-- Never Again! [Alliance]
-	[9536]=1,	-- Never Again! [Horde]
-	[10371]=1,	-- Yorus Barleybrew (Draenei)
-	[10621]=1,	-- Illidari Bane-Shard (A)
-	[10623]=1,	-- Illidari Bane-Shard (H)
-	[10759]=1,	-- Find the Deserter (A)
-	[10761]=1,	-- Find the Deserter (H)
-	[11185]=1,	-- The Apothecary's Letter
-	[11186]=1,	-- Signs of Treachery?
-	[11201]=1,	-- The Grimtotem Plot
-	[11123]=1,	-- Inspecting the Ruins [Alliance]
-	[11124]=1,	-- Inspecting the Ruins [Horde]
-	[11150]=1,	-- Raze Direhorn Post! [Alliance]
-	[11205]=1,	-- Raze Direhorn Post! [Horde]
-	[11215]=1,	-- Help Mudsprocket
-};
-local CompletedQuests = setmetatable({}, {__newindex = function (t, key, value)
-	if value then
-		rawset(t, key, value);
-		rawset(DirtyQuests, key, true);
-		app.SetCollected(nil, "Quests", key, true);
-		if app.Settings:GetTooltipSetting("Report:CompletedQuests") then
-			local searchResults = app.SearchForField("questID", key);
-			if searchResults and #searchResults > 0 then
-				local questID, nmr, nmc, text = key, false, false, "";
-				for i,searchResult in ipairs(searchResults) do
-					if searchResult.key == "questID" and not IgnoreErrorQuests[questID] and not GetRelativeField(searchResult, "headerID", app.HeaderConstants.TIER_ZERO_POINT_FIVE_SETS) then
-						if searchResult.nmr and not nmr then
-							nmr = true;
-							text = searchResult.text;
-						end
-						if searchResult.nmc and not nmc then
-							nmc = true;
-							text = searchResult.text;
-						end
-					end
-				end
-				if app.Settings:GetTooltipSetting("Report:UnsortedQuests") then
-					return true;
-				end
-				if nmc then key = key .. " [C]"; end
-				if nmr then key = key .. " [R]"; end
-				key = key .. " (" .. (text or RETRIEVING_DATA) .. ")";
-			else
-				local text = C_QuestLog.GetQuestInfo(key) or RETRIEVING_DATA;
-				key = key .. " [M] (" .. text .. ")";
-			end
-			print("Completed Quest #" .. key);
-		end
-	end
-end});
+local CompletedQuests, DirtyQuests = {}, {};
 local IsQuestFlaggedCompleted = function(questID)
 	return questID and CompletedQuests[questID];
 end
@@ -1577,7 +1459,7 @@ ResolveSymbolicLink = function(o)
 						elseif criteriaType == 110 or criteriaType == 29 or criteriaType == 69 or criteriaType == 52 or criteriaType == 53 or criteriaType == 54 or criteriaType == 32 then
 							-- Ignored
 						else
-							print("Unhandled Criteria Type", criteriaType, assetID);
+							--print("Unhandled Criteria Type", criteriaType, assetID);
 						end
 						if cache then
 							local uniques = {};
@@ -2467,10 +2349,10 @@ local function GetCachedSearchResults(search, method, paramA, paramB, ...)
 				end
 			end
 			
-			group.tooltipInfo = uniques;
 			for i,item in ipairs(uniques) do
 				if item.color then item.r, item.g, item.b = HexToRGB(item.color); end
 			end
+			group.tooltipInfo = uniques;
 		end
 		
 		-- Cache the result for a while depending on if there is more work to be done.
@@ -2951,8 +2833,12 @@ function app:GetDataCache()
 		-- Now that we have all of the root data, cache it.
 		app.CacheFields(rootData);
 		
+		-- The achievements window has a mix of dynamic and non-dynamic information.
+		local achievementDynamicCategory = app.CreateDynamicCategory("Achievements");
+		BuildGroups(achievementDynamicCategory.dynamicWindow.data);
+		table.insert(g, achievementDynamicCategory);
+		
 		-- Dynamic Categories (Content generated and managed by a separate Window)
-		table.insert(g, app.CreateDynamicCategory("Achievements"));
 		table.insert(g, app.CreateDynamicCategory("Battle Pets"));
 		table.insert(g, app.CreateDynamicCategory("Factions"));
 		table.insert(g, app.CreateDynamicCategory("Flight Paths"));
@@ -3106,7 +2992,7 @@ local function AttachTooltipRawSearchResults(self, lineNumber, group)
 			local rightname = self:GetName() .. "TextRight";
 			for i,entry in ipairs(group.tooltipInfo) do
 				local found = false;
-				left = entry.left;
+				left = entry.left or " ";
 				for i=self:NumLines(),1,-1 do
 					if _G[leftname..i]:GetText() == left then
 						o = _G[rightname..i];
@@ -3119,7 +3005,11 @@ local function AttachTooltipRawSearchResults(self, lineNumber, group)
 				if not found then
 					right = entry.right;
 					if right then
-						self:AddDoubleLine(left or " ", right);
+						if entry.r then
+							self:AddDoubleLine(left, right, entry.r, entry.g, entry.b, entry.r, entry.g, entry.b);
+						else
+							self:AddDoubleLine(left, right);
+						end
 					elseif entry.r then
 						if entry.wrap then
 							self:AddLine(left, entry.r, entry.g, entry.b, 1);
@@ -3128,7 +3018,7 @@ local function AttachTooltipRawSearchResults(self, lineNumber, group)
 						end
 					else
 						if entry.wrap then
-							self:AddLine(left, nil, nil, nil, 1);
+							self:AddLine(left, 1, 1, 1, 1);
 						else
 							self:AddLine(left);
 						end
@@ -3355,33 +3245,221 @@ local function ShowItemCompareTooltips(...)
 	end
 end
 app.ShowItemCompareTooltips = ShowItemCompareTooltips;
-GameTooltip:HookScript("OnTooltipSetQuest", AttachTooltip);
-GameTooltip:HookScript("OnTooltipSetItem", AttachTooltip);
-GameTooltip:HookScript("OnTooltipSetUnit", AttachTooltip);
-GameTooltip:HookScript("OnTooltipCleared", ClearTooltip);
-GameTooltip:HookScript("OnShow", AttachTooltip);
-GameTooltip:HookScript("OnUpdate", AttachTooltip);
-GameTooltip:HookScript("OnHide", ClearTooltip);
-ItemRefTooltip:HookScript("OnShow", AttachTooltip);
-ItemRefTooltip:HookScript("OnTooltipSetQuest", AttachTooltip);
-ItemRefTooltip:HookScript("OnTooltipSetItem", AttachTooltip);
-ItemRefTooltip:HookScript("OnTooltipCleared", ClearTooltip);
-ItemRefShoppingTooltip1:HookScript("OnShow", AttachTooltip);
-ItemRefShoppingTooltip1:HookScript("OnTooltipSetQuest", AttachTooltip);
-ItemRefShoppingTooltip1:HookScript("OnTooltipSetItem", AttachTooltip);
-ItemRefShoppingTooltip1:HookScript("OnTooltipCleared", ClearTooltip);
-ItemRefShoppingTooltip2:HookScript("OnShow", AttachTooltip);
-ItemRefShoppingTooltip2:HookScript("OnTooltipSetQuest", AttachTooltip);
-ItemRefShoppingTooltip2:HookScript("OnTooltipSetItem", AttachTooltip);
-ItemRefShoppingTooltip2:HookScript("OnTooltipCleared", ClearTooltip);
-WorldMapTooltip.ItemTooltip.Tooltip:HookScript("OnTooltipSetQuest", AttachTooltip);
-WorldMapTooltip.ItemTooltip.Tooltip:HookScript("OnTooltipSetItem", AttachTooltip);
-WorldMapTooltip.ItemTooltip.Tooltip:HookScript("OnTooltipSetUnit", AttachTooltip);
-WorldMapTooltip.ItemTooltip.Tooltip:HookScript("OnTooltipCleared", ClearTooltip);
-WorldMapTooltip:HookScript("OnTooltipSetItem", AttachTooltip);
-WorldMapTooltip:HookScript("OnTooltipSetQuest", AttachTooltip);
-WorldMapTooltip:HookScript("OnTooltipCleared", ClearTooltip);
-WorldMapTooltip:HookScript("OnShow", AttachTooltip);
+
+-- 10.0.2
+-- https://wowpedia.fandom.com/wiki/Patch_10.0.2/API_changes#Tooltip_Changes
+if TooltipDataProcessor then
+	local Enum_TooltipDataType = Enum.TooltipDataType;
+	local TooltipTypes = {
+		[Enum_TooltipDataType.Toy] = "itemID",
+		[Enum_TooltipDataType.Item] = "itemID",
+		[Enum_TooltipDataType.Spell] = "spellID",
+		[Enum_TooltipDataType.UnitAura] = "spellID",
+		--[Enum_TooltipDataType.Mount] = "spellID",
+		--[Enum_TooltipDataType.Macro] = "spellID",	-- Possibly?
+		[Enum_TooltipDataType.Achievement] = "achievementID",
+		[Enum_TooltipDataType.Quest] = "questID",
+		[Enum_TooltipDataType.QuestPartyProgress] = "questID",
+		--[Enum_TooltipDataType.BattlePet] = "speciesID",
+		--[Enum_TooltipDataType.CompanionPet] = "speciesID",
+		[Enum_TooltipDataType.Currency] = "currencyID",
+		[Enum_TooltipDataType.InstanceLock] = "instanceID",
+	};
+	--[[
+	for key,id in pairs(Enum_TooltipDataType) do
+		if not TooltipTypes[id] then
+			print("Not handling Tooltip Type", key, id);
+		end
+	end
+	]]--
+	TooltipDataProcessor.AddTooltipPostCall(TooltipDataProcessor.AllTypes, function(tooltip, data)
+		if InCombatLockdown() and not app.Settings:GetTooltipSetting("DisplayInCombat") then
+			return;
+		end
+		if not app.Settings:GetTooltipSetting("Enabled") then
+			return;
+		end
+		
+		local enumType = data.type;
+		local key = TooltipTypes[enumType];
+		if key then
+			if key == "" then
+				-- Intentionally blacklisted.
+				return;
+			end
+			
+			-- Try the default.
+			local id = data.id;
+			if id then
+				AttachTooltipSearchResults(tooltip, 1, key .. ":" .. id, app.SearchForField, key, id);
+				return;
+			end
+			
+			local name, link, id = TooltipUtil.GetDisplayedItem(tooltip);
+			if link and id then
+				if id == 137642 then -- skip Mark of Honor for now
+					AttachTooltipSearchResults(self, 1, link, (function() end), "itemID", 137642);
+					return true;
+				else
+					AttachTooltipSearchResults(tooltip, 1, link, SearchForLink, link);
+					return;
+				end
+			end
+			
+			local name, spellID = TooltipUtil.GetDisplayedSpell(tooltip);
+			if spellID then
+				AttachTooltipSearchResults(tooltip, 1, "spellID:" .. spellID, app.SearchForField, "spellID", spellID);
+				return;
+			end
+		elseif enumType == 10 then
+			-- Mounts!
+			local spellID = select(2, C_MountJournal.GetMountInfoByID(data.id));
+			if spellID then
+				AttachTooltipSearchResults(tooltip, 1, "spellID:" .. spellID, app.SearchForField, "spellID", spellID);
+				return;
+			end
+		elseif enumType == 4 then
+			-- Objects!
+			local objectID = app.GetBestObjectIDForName(data.lines[1].leftText);
+			if objectID then
+				AttachTooltipSearchResults(tooltip, 1, "objectID:" .. objectID, app.SearchForField, "objectID", objectID);
+				return true;
+			end
+		elseif enumType == 21 then
+			-- Minimap Mouseover
+			local content = data.lines;
+			if content and #content > 0 then
+				local text = content[1].leftText;
+				local arr = { strsplit("|", text) };
+				if #arr == 3 then text = strsub(arr[3], 2); end
+				local objectID = app.GetBestObjectIDForName(text);
+				if objectID then
+					AttachTooltipSearchResults(tooltip, 1, "objectID:" .. objectID, app.SearchForField, "objectID", objectID);
+					return true;
+				end
+			end
+		elseif enumType == 2 then
+			-- Units!
+			local name, t, guid = TooltipUtil.GetDisplayedUnit(tooltip);
+			if guid then
+				local type, zero, server_id, instance_id, zone_uid, npcID, spawn_uid = strsplit("-",guid);
+				-- print(guid, type, npcID);
+				if type == "Player" then
+					if guid == "Player-4372-0000390A" or guid == "Player-76-0895E23B" then
+						local leftSide = _G[tooltip:GetName() .. "TextLeft1"];
+						if leftSide then
+							leftSide:SetText("|c" .. app.Colors.Raid .. name .. " the Completionist|r");
+						end
+						local rightSide = _G[tooltip:GetName() .. "TextRight2"];
+						leftSide = _G[tooltip:GetName() .. "TextLeft2"];
+						if leftSide and rightSide then
+							leftSide:SetText(L["TITLE"]);
+							leftSide:Show();
+							rightSide:SetText("Author");
+							rightSide:Show();
+						else
+							tooltip:AddDoubleLine(L["TITLE"], "Author");
+						end
+					elseif SCARAB_LORD[guid] then
+						local leftSide = _G[tooltip:GetName() .. "TextLeft1"];
+						if leftSide then leftSide:SetText("|c" .. app.Colors.Raid .. "Scarab Lord " .. name .. "|r"); end
+					elseif GOLD_TYCOON[guid] then
+						local leftSide = _G[tooltip:GetName() .. "TextLeft1"];
+						if leftSide then leftSide:SetText("|c" .. app.Colors.Raid .. "Gold Tycoon " .. name .. "|r"); end
+					elseif EXTERMINATOR[guid] then
+						local leftSide = _G[tooltip:GetName() .. "TextLeft1"];
+						if leftSide then leftSide:SetText("|cffa335ee" .. name .. " the Exterminator|r"); end
+					elseif guid == "Player-4372-00006B41" then
+						local leftSide = _G[tooltip:GetName() .. "TextLeft1"];
+						if leftSide then leftSide:SetText("|cffF58CBA" .. name .. " the Huggler|r"); end
+					elseif guid == "Player-4647-031D0890" then
+						local leftSide = _G[tooltip:GetName() .. "TextLeft1"];
+						if leftSide then leftSide:SetText("|cff665a2c" .. name .. " the Time-Loser|r"); end
+						local rightSide = _G[tooltip:GetName() .. "TextRight2"];
+						if rightSide then rightSide:SetText(GetCollectionIcon(0)); end
+						tooltip:AddLine("This scumbag abused an auto-invite addon to steal the Time-Lost Proto Drake from a person that had them on their friends list. ATT has deemed this unacceptable behaviour and will forever stain this player's reputation so long as they remain on the server.", 0.4, 0.8, 1, true);
+					end
+				elseif type == "Creature" or type == "Vehicle" then
+					if app.Settings:GetTooltipSetting("creatureID") then tooltip:AddDoubleLine(L["CREATURE_ID"], tostring(npcID)); end
+					AttachTooltipSearchResults(tooltip, 1, "creatureID:" .. npcID, app.SearchForField, "creatureID", tonumber(npcID));
+				end
+				return true;
+			end
+		elseif enumType == 25 then
+			-- Macro!
+			local tooltipType = data.lines[2].type;
+			if tooltipType == 13 then
+				local spellID = data.lines[1].tooltipID;
+				if spellID then
+					AttachTooltipSearchResults(tooltip, 1, "spellID:" .. spellID, app.SearchForField, "spellID", spellID);
+					return;
+				end
+			elseif tooltipType == 29 then
+				local itemID = data.lines[1].tooltipID;
+				if itemID then
+					AttachTooltipSearchResults(tooltip, 1, "itemID:" .. itemID, app.SearchForField, "itemID", itemID);
+					return;
+				end
+			end
+		else
+			--[[
+			for key,value in pairs(data) do
+				if type(value) == "table" then
+					tooltip:AddLine(key);
+					for key2,value2 in pairs(value) do
+						tooltip:AddLine(" " .. key2);
+						if type(value2) == "table" then
+							for key3,value3 in pairs(value2) do
+								tooltip:AddDoubleLine("  " .. key3, tostring(value3));
+							end
+						else
+							tooltip:AddDoubleLine(" " .. key2, tostring(value2));
+						end
+					end
+				else
+					tooltip:AddDoubleLine(key, tostring(value));
+				end
+			end
+			-- Report unhandled types.
+			for key,id in pairs(Enum_TooltipDataType) do
+				if id == enumType then
+					print("Unhandled Tooltip Type", key, enumType);
+					return;
+				end
+			end
+			print("Unhandled Tooltip Type", enumType);
+			]]--
+		end
+	end)
+else
+	GameTooltip:HookScript("OnTooltipSetQuest", AttachTooltip);
+	GameTooltip:HookScript("OnTooltipSetItem", AttachTooltip);
+	GameTooltip:HookScript("OnTooltipSetUnit", AttachTooltip);
+	GameTooltip:HookScript("OnTooltipCleared", ClearTooltip);
+	GameTooltip:HookScript("OnShow", AttachTooltip);
+	GameTooltip:HookScript("OnUpdate", AttachTooltip);
+	GameTooltip:HookScript("OnHide", ClearTooltip);
+	ItemRefTooltip:HookScript("OnShow", AttachTooltip);
+	ItemRefTooltip:HookScript("OnTooltipSetQuest", AttachTooltip);
+	ItemRefTooltip:HookScript("OnTooltipSetItem", AttachTooltip);
+	ItemRefTooltip:HookScript("OnTooltipCleared", ClearTooltip);
+	ItemRefShoppingTooltip1:HookScript("OnShow", AttachTooltip);
+	ItemRefShoppingTooltip1:HookScript("OnTooltipSetQuest", AttachTooltip);
+	ItemRefShoppingTooltip1:HookScript("OnTooltipSetItem", AttachTooltip);
+	ItemRefShoppingTooltip1:HookScript("OnTooltipCleared", ClearTooltip);
+	ItemRefShoppingTooltip2:HookScript("OnShow", AttachTooltip);
+	ItemRefShoppingTooltip2:HookScript("OnTooltipSetQuest", AttachTooltip);
+	ItemRefShoppingTooltip2:HookScript("OnTooltipSetItem", AttachTooltip);
+	ItemRefShoppingTooltip2:HookScript("OnTooltipCleared", ClearTooltip);
+	WorldMapTooltip.ItemTooltip.Tooltip:HookScript("OnTooltipSetQuest", AttachTooltip);
+	WorldMapTooltip.ItemTooltip.Tooltip:HookScript("OnTooltipSetItem", AttachTooltip);
+	WorldMapTooltip.ItemTooltip.Tooltip:HookScript("OnTooltipSetUnit", AttachTooltip);
+	WorldMapTooltip.ItemTooltip.Tooltip:HookScript("OnTooltipCleared", ClearTooltip);
+	WorldMapTooltip:HookScript("OnTooltipSetItem", AttachTooltip);
+	WorldMapTooltip:HookScript("OnTooltipSetQuest", AttachTooltip);
+	WorldMapTooltip:HookScript("OnTooltipCleared", ClearTooltip);
+	WorldMapTooltip:HookScript("OnShow", AttachTooltip);
+end
 if select(4, GetBuildInfo()) > 11403 then
 	app:RegisterEvent("CURSOR_CHANGED");
 	app.events.CURSOR_CHANGED = function()
@@ -3829,6 +3907,9 @@ if GetCategoryInfo and GetCategoryInfo(92) ~= "" then
 			end
 		end
 	end
+	fields.isStatistic = function(t)
+		return select(15, GetAchievementInfo(t.achievementID));
+	end
 	local onTooltipForAchievement = function(t)
 		local achievementID = t.achievementID;
 		if achievementID and IsShiftKeyDown() then
@@ -3883,7 +3964,10 @@ if GetCategoryInfo and GetCategoryInfo(92) ~= "" then
 	app.CreateAchievement = app.CreateClass("Achievement", "achievementID", fields);
 	app.CreateAchievementCriteria = app.CreateClass("AchievementCriteria", "criteriaID", {
 		["achievementID"] = function(t)
-			return t.achID or t.parent.achievementID;
+			return t.achID or t.criteriaParent.achievementID;
+		end,
+		["criteriaParent"] = function(t)
+			return t.sourceParent or t.parent or app.EmptyTable;
 		end,
 		["index"] = function(t)
 			return 1;
@@ -3902,11 +3986,7 @@ if GetCategoryInfo and GetCategoryInfo(92) ~= "" then
 			if achievementID then
 				local criteriaID = t.criteriaID;
 				if criteriaID then
-					if criteriaID <= GetAchievementNumCriteria(achievementID) then
-						return GetAchievementCriteriaInfo(achievementID, criteriaID);
-					else
-						return GetAchievementCriteriaInfoByID(achievementID, criteriaID);
-					end
+					return t.GetInfo(achievementID, criteriaID, true) or ("achievementID:" .. achievementID .. ":" .. criteriaID);
 				end
 			end
 		end,
@@ -3947,52 +4027,48 @@ if GetCategoryInfo and GetCategoryInfo(92) ~= "" then
 			end
 		end,
 		["collected"] = function(t)
-			if t.parent.achievementID then
-				-- If the parent is collected, return immediately.
-				local collected = t.parent.collected;
-				if collected then return collected; end
-			end
-			
 			-- Check to see if the criteria was completed.
 			local achievementID = t.achievementID;
 			if achievementID then
-				if app.CurrentCharacter.Achievements[achievementID] then return true; end
+				if app.CurrentCharacter.Achievements[achievementID] then return 1; end
 				if app.Settings.AccountWide.Achievements and ATTAccountWideData.Achievements[achievementID] then return 2; end
+				
 				local criteriaID = t.criteriaID;
 				if criteriaID then
-					if criteriaID <= GetAchievementNumCriteria(achievementID) then
-						return select(3, GetAchievementCriteriaInfo(achievementID, criteriaID));
-					else
-						return select(3, GetAchievementCriteriaInfoByID(achievementID, criteriaID));
+					local collected = false;
+					local status, err = pcall(function()
+						collected = select(3, t.GetInfo(achievementID, criteriaID, true));
+					end);
+					if not status then
+						print("ERROR", achievementID, criteriaID, err);
 					end
+					return collected;
 				end
 			end
 		end,
 		["saved"] = function(t)
-			if t.parent.achievementID then
-				-- If the parent is saved, return immediately.
-				local saved = t.parent.saved;
-				if saved then return saved; end
-			end
-			
 			-- Check to see if the criteria was completed.
 			local achievementID = t.achievementID;
 			if achievementID then
 				if app.CurrentCharacter.Achievements[achievementID] then return true; end
 				local criteriaID = t.criteriaID;
 				if criteriaID then
-					if criteriaID <= GetAchievementNumCriteria(achievementID) then
-						return select(3, GetAchievementCriteriaInfo(achievementID, criteriaID));
-					else
-						return select(3, GetAchievementCriteriaInfoByID(achievementID, criteriaID));
-					end
+					return select(3, t.GetInfo(achievementID, criteriaID, true));
 				end
 			end
 		end,
 		["OnTooltip"] = function()
 			return onTooltipForAchievementCriteria;
 		end,
-	});
+		GetInfo = function()
+			return GetAchievementCriteriaInfoByID;
+		end,
+	},
+	"WithIndex", {
+		GetInfo = function()
+			return GetAchievementCriteriaInfo;
+		end;
+	}, (function(t) return t.criteriaID < 100; end));
 	
 	local function CheckAchievementCollectionStatus(achievementID)
 		achievementID = tonumber(achievementID);
@@ -5071,18 +5147,45 @@ end)();
 
 -- Currency Lib
 (function()
-local _GetCurrencyInfo, _GetCurrencyLink = GetCurrencyInfo, GetCurrencyLink;
-local CurrencyInfo = setmetatable({}, { __index = function(t, id)
-	local name, amount, icon = _GetCurrencyInfo(id);
-	if name then
-		local info = {
-			name = name,
-			icon = icon
-		}
-		rawset(t, id, info);
-		return info;
+local CurrencyInfo = {};
+local GetCurrencyCount;
+local GetCurrencyLink = GetCurrencyLink;
+if C_CurrencyInfo and C_CurrencyInfo.GetCurrencyInfo then
+	local C_CurrencyInfo_GetCurrencyInfo = C_CurrencyInfo.GetCurrencyInfo;
+	if C_CurrencyInfo.GetCurrencyLink then
+		GetCurrencyLink = C_CurrencyInfo.GetCurrencyLink;
 	end
-end });
+	setmetatable(CurrencyInfo, { __index = function(t, id)
+		local currencyInfo = C_CurrencyInfo_GetCurrencyInfo(id);
+		if currencyInfo then
+			local info = {
+				name = currencyInfo.name,
+				icon = currencyInfo.iconFileID
+			}
+			rawset(t, id, info);
+			return info;
+		end
+	end });
+	GetCurrencyCount = function(id)
+		return C_CurrencyInfo_GetCurrencyInfo(id).quantity or 0;
+	end
+else
+	local GetCurrencyInfo = GetCurrencyInfo;
+	setmetatable(CurrencyInfo, { __index = function(t, id)
+		local name, amount, icon = GetCurrencyInfo(id);
+		if name then
+			local info = {
+				name = name,
+				icon = icon
+			}
+			rawset(t, id, info);
+			return info;
+		end
+	end });
+	GetCurrencyCount = function(id)
+		return select(2, GetCurrencyInfo(id)) or 0;
+	end
+end
 local CurrencyCollectibleAsCost = setmetatable({}, { __index = function(t, id)
 	local results = app.SearchForField("currencyIDAsCost", id, true);
 	if results and #results > 0 then
@@ -5105,7 +5208,7 @@ local CurrencyCollectedAsCost = setmetatable({}, { __index = function(t, id)
 	local any, partial;
 	local results = app.SearchForField("currencyIDAsCost", id, true);
 	if results and #results > 0 then
-		local count = select(2, GetCurrencyInfo(id)) or 0;
+		local count = GetCurrencyCount(id);
 		for _,ref in pairs(results) do
 			if ref.currencyID ~= id and app.RecursiveDefaultClassAndRaceFilter(ref) then
 				if ref.collectible and ref.collected ~= 1 then
@@ -5166,7 +5269,7 @@ app.CreateCurrencyClass = app.CreateClass("Currency", "currencyID", {
 		return {};
 	end,
 	["link"] = function(t)
-		return _GetCurrencyLink(t.currencyID, 1);
+		return GetCurrencyLink(t.currencyID, 1);
 	end,
 	["collectible"] = function(t)
 		return t.collectibleAsCost;
@@ -5189,6 +5292,7 @@ app.CreateCurrencyClass = app.CreateClass("Currency", "currencyID", {
 	end,
 });
 
+if not TooltipDataProcessor then
 local GameTooltip_SetCurrencyByID = GameTooltip.SetCurrencyByID;
 GameTooltip.SetCurrencyByID = function(self, currencyID, count)
 	-- Make sure to call to base functionality
@@ -5218,14 +5322,11 @@ GameTooltip.SetCurrencyToken = function(self, tokenID)
 			local cache = app.SearchForFieldContainer("currencyID");
 			if cache then
 				-- We only care about currencies in the addon at the moment.
-				for currencyID, _ in pairs(cache) do
+				for currencyID,results in pairs(cache) do
 					-- Compare the name of the currency vs the name of the token
-					if _GetCurrencyInfo(currencyID) == name then
+					if results[1].text == name then
 						if not GameTooltip_SetCurrencyToken then
-							local results = app.SearchForField("currencyID", currencyID);
-							if results and #results > 0 then
-								GameTooltip:AddLine(results[1].text or RETRIEVING_DATA, 1, 1, 1);
-							end
+							GameTooltip:AddLine(results[1].text or RETRIEVING_DATA, 1, 1, 1);
 						end
 						AttachTooltipSearchResults(self, 1, "currencyID:" .. currencyID, app.SearchForField, "currencyID", currencyID);
 						if app.Settings:GetTooltipSetting("currencyID") then self:AddDoubleLine(L["CURRENCY_ID"], tostring(currencyID)); end
@@ -5236,6 +5337,7 @@ GameTooltip.SetCurrencyToken = function(self, tokenID)
 			end
 		end
 	end
+end
 end
 end)();
 
@@ -5418,9 +5520,6 @@ if EJ_GetEncounterInfo then
 		end,
 		["lore"] = function(t)
 			return select(2, EJ_GetEncounterInfo(t.encounterID));
-		end,
-		["link"] = function(t)
-			return select(5, EJ_GetEncounterInfo(t.encounterID));
 		end,
 		["displayID"] = function(t)
 			return select(4, EJ_GetCreatureInfo(1, t.encounterID));
@@ -6793,7 +6892,10 @@ app.CreateMap = function(id, t)
 				explorationHeader = o;
 				if o.g then
 					for j,e in ipairs(o.g) do
-						explorationByAreaID[e.explorationID] = e;
+						local explorationID = e.explorationID;
+						if explorationID then
+							explorationByAreaID[explorationID] = e;
+						end
 					end
 				end
 				break;
@@ -6948,17 +7050,6 @@ app:RegisterEvent("ZONE_CHANGED");
 app:RegisterEvent("ZONE_CHANGED_NEW_AREA");
 end)();
 
--- Music Rolls & Selfie Filter Lib: Music Rolls
-(function()
--- Neither of these are supported at this time.
-app.CreateMusicRoll = function(questID, t)
-	return nil;
-end
-app.CreateSelfieFilter = function(id, t)
-	return nil;
-end
-end)();
-
 -- NPC Lib
 (function()
 -- NPC Model Harvester (also acquires the displayID)
@@ -6982,26 +7073,48 @@ end});
 app.NPCDisplayIDFromID = NPCDisplayIDFromID;
 
 -- NPC & Title Name Harvesting Lib (https://us.battle.net/forums/en/wow/topic/20758497390?page=1#post-4, Thanks Gello!)
-local NPCTitlesFromID = {};
-local ATTCNPCHarvester = CreateFrame("GameTooltip", "ATTCNPCHarvester", UIParent, "GameTooltipTemplate");
-local NPCNameFromID = setmetatable({}, { __index = function(t, id)
-	if id > 0 then
-		ATTCNPCHarvester:SetOwner(UIParent,"ANCHOR_NONE")
-		ATTCNPCHarvester:SetHyperlink(format("unit:Creature-0-0-0-0-%d-0000000000",id))
-		local title = ATTCNPCHarvesterTextLeft1:GetText();
-		if title and ATTCNPCHarvester:NumLines() > 2 then
-			rawset(NPCTitlesFromID, id, ATTCNPCHarvesterTextLeft2:GetText());
+local NPCNameFromID, NPCTitlesFromID = {},{};
+local C_TooltipInfo_GetHyperlink = C_TooltipInfo and C_TooltipInfo.GetHyperlink;
+if C_TooltipInfo_GetHyperlink then
+	setmetatable(NPCNameFromID, { __index = function(t, id)
+		if id > 0 then
+			local tooltipData = C_TooltipInfo_GetHyperlink(format("unit:Creature-0-0-0-0-%d-0000000000",id));
+			if tooltipData then
+				local title = tooltipData.lines[1].leftText;
+				if title and #tooltipData.lines > 2 then
+					NPCTitlesFromID[id] = tooltipData.lines[2].leftText;
+				end
+				if title and title ~= RETRIEVING_DATA then
+					t[id] = title;
+					return title;
+				end
+			end
+		else
+			return L.HEADER_NAMES[id];
 		end
-		ATTCNPCHarvester:Hide();
-		if title and title ~= RETRIEVING_DATA then
-			rawset(t, id, title);
-			return title;
+	end});
+else
+	local ATTCNPCHarvester = CreateFrame("GameTooltip", "ATTCNPCHarvester", UIParent, "GameTooltipTemplate");
+	setmetatable(NPCNameFromID, { __index = function(t, id)
+		if id > 0 then
+			ATTCNPCHarvester:SetOwner(UIParent,"ANCHOR_NONE")
+			ATTCNPCHarvester:SetHyperlink(format("unit:Creature-0-0-0-0-%d-0000000000",id))
+			local title = ATTCNPCHarvesterTextLeft1:GetText();
+			if title and ATTCNPCHarvester:NumLines() > 2 then
+				NPCTitlesFromID[id] = ATTCNPCHarvesterTextLeft2:GetText();
+			end
+			ATTCNPCHarvester:Hide();
+			if title and title ~= RETRIEVING_DATA then
+				t[id] = title;
+				return title;
+			end
+		else
+			return L.HEADER_NAMES[id];
 		end
-	else
-		return L["HEADER_NAMES"][id];
-	end
-end});
+	end});
+end
 app.NPCNameFromID = NPCNameFromID;
+app.NPCTitlesFromID = NPCTitlesFromID;
 
 -- Event, Header, and NPC Lib
 local createNPC = app.CreateClass("NPC", "npcID", {
@@ -7068,6 +7181,10 @@ local createCustomHeader = app.CreateClass("Header", "headerID", {
 "WithEvent", app.Modules.Events.Fields, (function(t) return L.HEADER_EVENTS[t.headerID]; end));
 app.CreateCustomHeader = createCustomHeader;
 app.CreateNPC = function(id, t)
+	if not id then
+		print("Broken ID for CreateNPC");
+		id = 0;
+	end
 	if id < 1 then
 		if t and t.npcID == id then t.npcID = nil; end
 		return createCustomHeader(id, t);
@@ -7307,10 +7424,12 @@ end)();
 
 -- Quest Lib
 (function()
+local C_QuestLog_GetQuestInfo = C_QuestLog.GetTitleForQuestID or C_QuestLog.GetQuestInfo;
 local C_QuestLog_GetQuestObjectives = C_QuestLog.GetQuestObjectives;
+local GetQuestLogIndexByID = C_QuestLog.GetLogIndexForQuestID or GetQuestLogIndexByID;
 local questRetries = {};
 local QuestTitleFromID = setmetatable({}, { __index = function(t, id)
-	local title = C_QuestLog.GetQuestInfo(id);
+	local title = C_QuestLog_GetQuestInfo(id);
 	if title and title ~= RETRIEVING_DATA then
 		rawset(questRetries, id, nil);
 		rawset(t, id, title);
@@ -7327,6 +7446,134 @@ local QuestTitleFromID = setmetatable({}, { __index = function(t, id)
 		end
 	end
 end })
+local IgnoreErrorQuests = {
+	[1476]=1,	-- Hearts of the Pure (Horde Pre-req for the Undercity Succubus Binding quest)
+	[1474]=1,	-- The Binding (Succubus) [Undercity]
+	[1508]=1,	-- Blind Cazul (Horde Pre-req for the Orgrimmar Succubus Binding quest)
+	[1509]=1,	-- News of Dogran (1/2) (Horde Pre-req for the Orgrimmar Succubus Binding quest)
+	[1510]=1,	-- News of Dogran (2/2) (Horde Pre-req for the Orgrimmar Succubus Binding quest)
+	[1511]=1,	-- Ken'zigla's Draught (Horde Pre-req for the Orgrimmar Succubus Binding quest)
+	[1515]=1,	-- Dogran's Captivity (Horde Pre-req for the Orgrimmar Succubus Binding quest)
+	[1512]=1,	-- Love's Gift (Horde Pre-req for the Orgrimmar Succubus Binding quest)
+	[1513]=1,	-- The Binding (Succubus) [Orgrimmar]
+	[1738]=1,	-- Heartswood (Alliance Pre-req for the Stormwind City Succubus Binding quest)
+	[1739]=1,	-- The Binding (Succubus) [Stormwind City]
+	[1516]=1, 	-- Call of Earth (1/3 Durotar)
+	[1519]=1, 	-- Call of Earth (1/3 Mulgore)
+	[9449]=1, 	-- Call of Earth (1/3 Ammen Vale)
+	[555]=1,	-- Soothing Turtle Bisque (A)
+	[7321]=1,	-- Soothing Turtle Bisque (H)
+	[3630]=1,	-- Gnome Engineering [A]
+	[3632]=1,	-- Gnome Engineering [A]
+	[3634]=1,	-- Gnome Engineering [H]
+	[3635]=1,	-- Gnome Engineering [H]
+	[3637]=1,	-- Gnome Engineering [H]
+	[3526]=1,	-- Goblin Engineering [H]
+	[3629]=1,	-- Goblin Engineering [A]
+	[3633]=1,	-- Goblin Engineering [H]
+	[4181]=1,	-- Goblin Engineering [A]
+	[5517]=1,	-- Chromatic Mantle of the Dawn
+	[5521]=1,	-- Chromatic Mantle of the Dawn
+	[5524]=1,	-- Chromatic Mantle of the Dawn
+	[5504]=1,	-- Mantles of the Dawn
+	[5507]=1,	-- Mantles of the Dawn
+	[5513]=1,	-- Mantles of the Dawn
+	[7170]=1,	-- Earned Reverence (Alliance)
+	[7165]=1,	-- Earned Reverence (Horde)
+	[7171]=1,	-- Legendary Heroes (Alliance)
+	[7166]=1,	-- Legendary Heroes (Horde)
+	[7168]=1,	-- Rise and Be Recognized (Alliance)
+	[7163]=1,	-- Rise and Be Recognized (Horde)
+	[7172]=1,	-- The Eye of Command (Alliance)
+	[7167]=1,	-- The Eye of Command (Horde)
+	[7164]=1,	-- Honored Amongst the Clan
+	[7169]=1,	-- Honored Amongst the Guard
+	[8870]=1,	-- The Lunar Festival
+	[8871]=1,	-- The Lunar Festival
+	[8872]=1,	-- The Lunar Festival
+	[8873]=1,	-- The Lunar Festival
+	[8874]=1,	-- The Lunar Festival
+	[8875]=1,	-- The Lunar Festival
+	[8700]=1,	-- Band of Unending Life
+	[8692]=1,	-- Cloak of Unending Life
+	[8708]=1,	-- Mace of Unending Life
+	[8704]=1,	-- Signet of the Unseen Path
+	[8696]=1,	-- Cloak of the Unseen Path
+	[8712]=1,	-- Scythe of the Unseen Path
+	[8699]=1,	-- Band of Vaulted Secrets
+	[8691]=1,	-- Drape of Vaulted Secrets
+	[8707]=1,	-- Blade of Vaulted Secrets
+	[8703]=1,	-- Ring of Eternal Justice
+	[8695]=1,	-- Cape of Eternal Justice
+	[8711]=1,	-- Blade of Eternal Justice
+	[8697]=1,	-- Ring of Infinite Wisdom
+	[8689]=1,	-- Shroud of Infinite Wisdom
+	[8705]=1,	-- Gavel of Infinite Wisdom
+	[8701]=1,	-- Band of Veiled Shadows
+	[8693]=1,	-- Cloak of Veiled Shadows
+	[8709]=1,	-- Dagger of Veiled Shadows
+	[8698]=1,	-- Ring of the Gathering Storm
+	[8690]=1,	-- Cloak of the Gathering Storm
+	[8706]=1,	-- Hammer of the Gathering Storm
+	[8702]=1,	-- Ring of Unspoken Names
+	[8694]=1,	-- Shroud of Unspoken Names
+	[8710]=1,	-- Kris of Unspoken Names
+	[8556]=1,	-- Signet of Unyielding Strength
+	[8557]=1,	-- Drape of Unyielding Strength
+	[8558]=1,	-- Sickle of Unyielding Strength
+	[9520]=1,	-- Diabolical Plans [Alliance]
+	[9535]=1,	-- Diabolical Plans [Horde]
+	[9522]=1,	-- Never Again! [Alliance]
+	[9536]=1,	-- Never Again! [Horde]
+	[10371]=1,	-- Yorus Barleybrew (Draenei)
+	[10621]=1,	-- Illidari Bane-Shard (A)
+	[10623]=1,	-- Illidari Bane-Shard (H)
+	[10759]=1,	-- Find the Deserter (A)
+	[10761]=1,	-- Find the Deserter (H)
+	[11185]=1,	-- The Apothecary's Letter
+	[11186]=1,	-- Signs of Treachery?
+	[11201]=1,	-- The Grimtotem Plot
+	[11123]=1,	-- Inspecting the Ruins [Alliance]
+	[11124]=1,	-- Inspecting the Ruins [Horde]
+	[11150]=1,	-- Raze Direhorn Post! [Alliance]
+	[11205]=1,	-- Raze Direhorn Post! [Horde]
+	[11215]=1,	-- Help Mudsprocket
+};
+setmetatable(CompletedQuests, {__newindex = function (t, key, value)
+	if value then
+		rawset(t, key, value);
+		rawset(DirtyQuests, key, true);
+		app.SetCollected(nil, "Quests", key, true);
+		if app.Settings:GetTooltipSetting("Report:CompletedQuests") then
+			local searchResults = app.SearchForField("questID", key);
+			if searchResults and #searchResults > 0 then
+				local questID, nmr, nmc, text = key, false, false, "";
+				for i,searchResult in ipairs(searchResults) do
+					if searchResult.key == "questID" and not IgnoreErrorQuests[questID] and not GetRelativeField(searchResult, "headerID", app.HeaderConstants.TIER_ZERO_POINT_FIVE_SETS) then
+						if searchResult.nmr and not nmr then
+							nmr = true;
+							text = searchResult.text;
+						end
+						if searchResult.nmc and not nmc then
+							nmc = true;
+							text = searchResult.text;
+						end
+					end
+				end
+				if app.Settings:GetTooltipSetting("Report:UnsortedQuests") then
+					return true;
+				end
+				if nmc then key = key .. " [C]"; end
+				if nmr then key = key .. " [R]"; end
+				key = key .. " (" .. (text or RETRIEVING_DATA) .. ")";
+			else
+				local text = C_QuestLog_GetQuestInfo(key) or RETRIEVING_DATA;
+				key = key .. " [M] (" .. text .. ")";
+			end
+			print("Completed Quest #" .. key);
+		end
+	end
+end});
 
 local criteriaFuncs = {
     ["achID"] = function(achievementID)
@@ -7784,7 +8031,16 @@ app.events.QUEST_ACCEPTED = function(questLogIndex, questID)
 end
 app.events.QUEST_LOG_UPDATE = function()
 	app:UnregisterEvent("QUEST_LOG_UPDATE");
-	GetQuestsCompleted(CompletedQuests);
+	if C_QuestLog_GetAllCompletedQuestIDs then
+		local completedQuests = C_QuestLog_GetAllCompletedQuestIDs();
+		if completedQuests and #completedQuests > 0 then
+			for i,questID in ipairs(completedQuests) do
+				CompletedQuests[questID] = true;
+			end
+		end
+	else
+		GetQuestsCompleted(CompletedQuests);
+	end
 	for questID,completed in pairs(DirtyQuests) do
 		app.QuestCompletionHelper(tonumber(questID));
 	end
@@ -8111,7 +8367,7 @@ app.CreateTitle = app.CreateClass("Title", "titleID", {
 		return L["TITLES_DESC"];
 	end,
 	["text"] = function(t)
-		return "|cff00ccff" .. (t.name or RETRIEVING_DATA) .. "|r";
+		return "|c" .. app.Colors.Account .. (t.name or RETRIEVING_DATA) .. "|r";
 	end,
 	["name"] = function(t)
 		return StylizePlayerTitle(t.titleName, t.style, UnitName("player"));
@@ -8211,6 +8467,67 @@ app.CreateTitle = app.CreateClass("Title", "titleID", {
 		return OnUpdateForGenderedTitle;
 	end
 }, (function(t) return t.titleIDs; end));
+end)();
+
+-- Unsupported Libs
+(function()
+-- Neither of these are supported at this time.
+app.CreateArtifact = function(id, t)
+	return { text = "Artifact #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateAzeriteEssence = function(id, t)
+	return { text = "AzeriteEssence #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateConduit = function(id, t)
+	return { text = "Conduit #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateDrakewatcherManuscript = function(id, t)
+	return { text = "DrakewatcherManuscript #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateFollower = function(id, t)
+	return { text = "Follower #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateGarrisonBuilding = function(id, t)
+	return { text = "GarrisonBuilding #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateGarrisonMission = function(id, t)
+	return { text = "GarrisonMission #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateGarrisonTalent = function(id, t)
+	return { text = "GarrisonTalent #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateGearSet = function(id, t)
+	return { text = "GearSet #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateGearSetHeader = function(id, t)
+	return { text = "GearSetHeader #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateGearSetSubHeader = function(id, t)
+	return { text = "GearSetSubHeader #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateMusicRoll = function(questID, t)
+	return { text = "MusicRoll #" .. questID, description = "This data type is not supported at this time." };
+end
+app.CreatePetAbility = function(id, t)
+	return { text = "PetAbility #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateRace = function(id, t)
+	return { text = "Race #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateRuneforgeLegendary = function(id, t)
+	return { text = "RuneforgeLegendary #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateSelfieFilter = function(id, t)
+	return { text = "SelfieFilter #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateVignette = function(id, t)
+	return { text = "Vignette #" .. id, description = "This data type is not supported at this time." };
+end
+app.CreateItemSource = function(sourceID, itemID, t)
+	t = app.CreateItem(itemID, t);
+	t.s = sourceID;
+	return t;
+end
 end)();
 
 -- Filtering
@@ -8634,32 +8951,35 @@ local function RefreshSkills()
 	wipe(activeSkills);
 	rawset(app.SpellNameToSpellID, 0, nil);
 	app.GetSpellName(0);
-	for index=GetNumSkillLines(),2,-1 do
-		local skillName, header, isExpanded, skillRank, numTempPoints, skillModifier,
-			skillMaxRank, isAbandonable, stepCost, rankCost, minLevel, skillCostType,
-			skillDescription = GetSkillLineInfo(index);
-		if not header then
-			local spellID = app.SpellNameToSpellID[skillName];
-			if spellID then
-				local spellName = GetSpellInfo(spellID);
-				for _,s in pairs(app.SkillIDToSpellID) do
-					if GetSpellInfo(s) == spellName then
-						spellID = s;
-						break;
-					end
-				end
-				activeSkills[spellID] = { skillRank, skillMaxRank };
-			else
-				for _,s in pairs(app.SkillIDToSpellID) do
-					if GetSpellInfo(s) == skillName then
-						spellID = s;
-						break;
-					end
-				end
+	local GetSkillLineInfo = _G["GetSkillLineInfo"];
+	if GetSkillLineInfo then
+		for index=GetNumSkillLines(),2,-1 do
+			local skillName, header, isExpanded, skillRank, numTempPoints, skillModifier,
+				skillMaxRank, isAbandonable, stepCost, rankCost, minLevel, skillCostType,
+				skillDescription = GetSkillLineInfo(index);
+			if not header then
+				local spellID = app.SpellNameToSpellID[skillName];
 				if spellID then
+					local spellName = GetSpellInfo(spellID);
+					for _,s in pairs(app.SkillIDToSpellID) do
+						if GetSpellInfo(s) == spellName then
+							spellID = s;
+							break;
+						end
+					end
 					activeSkills[spellID] = { skillRank, skillMaxRank };
 				else
-					--print(skillName, header, isExpanded, skillRank, numTempPoints, skillModifier, skillMaxRank, isAbandonable, stepCost, rankCost, minLevel, skillCostType, skillDescription);
+					for _,s in pairs(app.SkillIDToSpellID) do
+						if GetSpellInfo(s) == skillName then
+							spellID = s;
+							break;
+						end
+					end
+					if spellID then
+						activeSkills[spellID] = { skillRank, skillMaxRank };
+					else
+						--print(skillName, header, isExpanded, skillRank, numTempPoints, skillModifier, skillMaxRank, isAbandonable, stepCost, rankCost, minLevel, skillCostType, skillDescription);
+					end
 				end
 			end
 		end
@@ -9179,7 +9499,6 @@ local function CreateMinimapButton()
 	button:UpdateStyle();
 	
 	-- Button Configuration
-	local radius = 78;
 	local rounding = 10;
 	local MinimapShapes = {
 		-- quadrant booleans (same order as SetTexCoord)
@@ -9213,13 +9532,14 @@ local function CreateMinimapButton()
 		if sin > 0 then
 			q = q + 2;	-- right
 		end
+		local width = (Minimap:GetWidth() * 0.5) + 8;
+		local height = (Minimap:GetHeight() * 0.5) + 8;
 		if MinimapShapes[GetMinimapShape and GetMinimapShape() or "ROUND"][q] then
-			x = cos*radius;
-			y = sin*radius;
+			x = cos*width;
+			y = sin*height;
 		else
-			local diagRadius = math.sqrt(2*(radius)^2)-rounding
-			x = math.max(-radius, math.min(cos*diagRadius, radius))
-			y = math.max(-radius, math.min(sin*diagRadius, radius))
+			x = math.max(-width, math.min(cos*(math.sqrt(2*(width)^2)-rounding), width))
+			y = math.max(-height, math.min(sin*(math.sqrt(2*(height)^2)-rounding), height))
 		end
 		self:SetPoint("CENTER", "Minimap", "CENTER", -x, y);
 	end
@@ -9406,7 +9726,7 @@ local function SetRowData(self, row, data)
 	end
 	
 	-- If data is quest and is currently accepted or saved...
-	if data.questID and GetQuestLogIndexByID(data.questID) > 0 then
+	if data.questID and C_QuestLog.IsOnQuest(data.questID) then
 		indicatorTexture = app.asset("known_circle");
 	elseif data.saved then
 		if data.parent and data.parent.locks or data.isDaily then
@@ -9784,7 +10104,7 @@ local function RowOnEnter(self)
 				end
 			elseif reference.currencyID then
 				GameTooltip:SetCurrencyByID(reference.currencyID, 1);
-			else
+			elseif reference.key ~= "questID" then
 				local link = reference.link;
 				if link then
 					pcall(GameTooltip.SetHyperlink, GameTooltip, link);
@@ -9803,7 +10123,9 @@ local function RowOnEnter(self)
 		end
 		
 		-- Miscellaneous fields
-		if GameTooltip:NumLines() < 1 then GameTooltip:AddLine(self.Label:GetText()); end
+		if GameTooltip:NumLines() < 1 then
+			GameTooltip:AddLine(reference.text);
+		end
 		if app.Settings:GetTooltipSetting("Progress") then
 			if reference.trackable and reference.total and reference.total >= 2 then
 				GameTooltip:AddDoubleLine("Tracking Progress", GetCompletionText(reference.saved));
@@ -10008,8 +10330,8 @@ local function RowOnEnter(self)
 					GameTooltip:AddLine(lore, r, g, b, 1);
 				end
 			end
-			if reference.description and app.Settings:GetTooltipSetting("Descriptions") then
-				local description = reference.description;
+			local description = reference.description;
+			if description and app.Settings:GetTooltipSetting("Descriptions") then
 				local found = false;
 				for i=1,GameTooltip:NumLines() do
 					if _G["GameTooltipTextLeft"..i]:GetText() == description then
@@ -10209,9 +10531,13 @@ local function RowOnEnter(self)
 						GameTooltip:AddDoubleLine(k == 1 and "Cost" or " ", GetCoinTextureString(v[2]));
 					else
 						if _ == "i" then
-							_,name,_,_,_,_,_,_,_,icon = GetItemInfo(v[2]);
+							local item = app.CreateItem(v[2]);
+							name = item.name;
+							icon = item.icon;
 						elseif _ == "c" then
-							name,_,icon = GetCurrencyInfo(v[2])
+							local currency = app.CreateCurrencyClass(v[2]);
+							name = currency.text;
+							icon = currency.icon;
 						end
 						name = (icon and ("|T" .. icon .. ":0|t") or "") .. (name or RETRIEVING_DATA);
 						_ = (v[3] or 1);
@@ -13152,7 +13478,7 @@ app:GetWindow("Tradeskills", {
 		end
 		handlers.CRAFT_SHOW = updateTradeSkill;
 		handlers.TRADE_SKILL_SHOW = updateTradeSkill;
-		self:RegisterEvent("CRAFT_SHOW");
+		pcall(self.RegisterEvent, self, "CRAFT_SHOW");
 		self:RegisterEvent("TRADE_SKILL_SHOW");
 		
 		local tradeSkillClose = function()
@@ -13165,7 +13491,7 @@ app:GetWindow("Tradeskills", {
 		end
 		handlers.CRAFT_CLOSE = tradeSkillClose;
 		handlers.TRADE_SKILL_CLOSE = tradeSkillClose;
-		self:RegisterEvent("CRAFT_CLOSE");
+		pcall(self.RegisterEvent, self, "CRAFT_CLOSE");
 		self:RegisterEvent("TRADE_SKILL_CLOSE");
 		
 		local newSpellLearned = function(self, spellID)
@@ -13200,7 +13526,7 @@ app:GetWindow("Tradeskills", {
 		self:RegisterEvent("NEW_RECIPE_LEARNED");
 		
 		-- Default Update refreshes
-		self:RegisterEvent("CRAFT_UPDATE");
+		pcall(self.RegisterEvent, self, "CRAFT_UPDATE");
 		self:RegisterEvent("TRADE_SKILL_LIST_UPDATE");
 		self:RegisterEvent("SKILL_LINES_CHANGED");
 	end,
@@ -13819,7 +14145,16 @@ app.events.VARIABLES_LOADED = function()
 		app.CurrentMapID = app.GetCurrentMapID();
 		
 		-- Mark all previously completed quests.
-		GetQuestsCompleted(CompletedQuests);
+		if C_QuestLog_GetAllCompletedQuestIDs then
+			local completedQuests = C_QuestLog_GetAllCompletedQuestIDs();
+			if completedQuests and #completedQuests > 0 then
+				for i,questID in ipairs(completedQuests) do
+					CompletedQuests[questID] = true;
+				end
+			end
+		else
+			GetQuestsCompleted(CompletedQuests);
+		end
 		wipe(DirtyQuests);
 		app.events.UPDATE_INSTANCE_INFO();
 		C_ChatInfo.RegisterAddonMessagePrefix("ATTC");
