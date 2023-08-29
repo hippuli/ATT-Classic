@@ -9,11 +9,7 @@ local GetAchievementCriteriaInfo, GetAchievementNumCriteria, GetAchievementInfo,
 	  GetAchievementCriteriaInfo, GetAchievementNumCriteria, GetAchievementInfo, GetCategoryInfo, GetCategoryList;
 
 -- App locals
-local function GetRelativeValue(group, field)
-	if group then
-		return group[field] or GetRelativeValue(group.parent, field);
-	end
-end
+local GetRelativeValue = app.GetRelativeValue;
 
 -- Module locals
 local function cacheAchievementData(self, categories, g)
@@ -88,7 +84,7 @@ app:GetWindow("Achievements", {
 		SlashCmdList["ATTACHIEVEMENTS"] = function(cmd)
 			self:Toggle();
 		end
-		self.data = app.CreateFilter(105, {
+		self.data = app.CreateCustomHeader(app.HeaderConstants.ACHIEVEMENTS, {
 			description = "This list shows you all of the achievements that you can collect.",
 			visible = true,
 			expanded = true,
@@ -160,11 +156,11 @@ app:GetWindow("Achievements", {
 						end
 					end
 				end
-				if GetCategoryList then
+				if GetCategoryList and GetCategoryNumAchievements then
 					local unsorted = app:GetWindow("Unsorted");
 					for _,categoryID in ipairs(GetCategoryList()) do
 						local numAchievements = GetCategoryNumAchievements(categoryID);
-						if numAchievements > 0 then
+						if numAchievements and numAchievements > 0 then
 							for i=1,numAchievements,1 do
 								local achievementID, name, points, completed, month, day, year, description, flags, icon, rewardText, isGuild, wasEarnedByMe, earnedBy, isStatistic = GetAchievementInfo(categoryID, i);
 								if achievementID and not isStatistic and not data.achievements[achievementID] then

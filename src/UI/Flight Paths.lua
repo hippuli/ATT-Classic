@@ -43,16 +43,12 @@ app:GetWindow("Flight Paths", {
 							end
 						end
 					end
-					for i,_ in pairs(ATTClassicAD.LocalizedFlightPathDB) do
+					for i,name in pairs(ATTClassicAD.LocalizedFlightPathNames) do
 						if not fps[i] then
 							local fp = app.CreateFlightPath(tonumber(i));
 							fps[i] = fp;
-							if not _.u or _.u ~= 1 then
-								fp.r = _.r;
-								fp.u = _.u;
-								fp.parent = data;
-								tinsert(g, fp);
-							end
+							fp.parent = data;
+							tinsert(g, fp);
 						end
 					end
 					app.Sort(g, app.SortDefaults.Name, true);

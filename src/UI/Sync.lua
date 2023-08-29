@@ -925,7 +925,7 @@ app:GetWindow("Synchronization", {
 			local options = {
 				{	-- Add Linked Character
 					text = "Add Linked Character",
-					icon = app.asset("Ability_Priest_VoidShift"),
+					icon = app.asset("Button_Add"),
 					description = "Click here to link a character to your account.\n\nOnce Linked, click on the Linked Character in the list below to initiate a sync with that character.\n\nNOTE: Your character must be on the same faction and server as your current character to sync.",
 					OnUpdate = app.AlwaysShowUpdate,
 					OnClick = function(row, button)
@@ -943,7 +943,7 @@ app:GetWindow("Synchronization", {
 				},
 				setmetatable({	-- Sync All Characters
 					text = "Sync All Characters",
-					icon = app.asset("Ability_Priest_VoidShift"),
+					icon = app.asset("Button_Sync"),
 					description = "Click here to sync all of your characters.\n\nAlt+Click to toggle automatically syncing characters with your other accounts.\n\nYou must initially have the character stored on this account by Linking a Character and manually initiating a sync with that character. The character on your other account must also assign this character as a Linked Character.\n\nNOTE: Your character must be on the same faction and server as your current character to sync.",
 					OnUpdate = app.AlwaysShowUpdate,
 					OnClick = function(row, button)
@@ -1037,7 +1037,7 @@ app:GetWindow("Synchronization", {
 			};
 			self.data = {
 				text = "Account Management",
-				icon = app.asset("Achievement_Dungeon_HEROIC_GloryoftheRaider"), 
+				icon = app.asset("WindowIcon_AccountManagement"), 
 				description = "This list shows you all of the functionality related to syncing account data.",
 				visible = true, 
 				expanded = true,

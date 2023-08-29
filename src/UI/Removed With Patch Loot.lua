@@ -15,7 +15,7 @@ app:GetWindow("RWP", {
 		if self.data then return true; end
 		self.data = {
 			text = "Removed With Patch Loot",
-			icon = app.asset("Ability_Rogue_RolltheBones.blp"), 
+			icon = app.asset("WindowIcon_RWP"), 
 			description = "This window shows you all of the things that get removed in a future patch that we know about and have documented in the addon. These items use a 'removed in patch' note on their tooltip to indicate when you can expect an item to be removed from the game.",
 			visible = true, 
 			expanded = true,

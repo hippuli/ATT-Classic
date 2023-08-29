@@ -16,7 +16,7 @@ app:GetWindow("Dailies", {
 		if not self.data then
 			self.data = {
 				text = "Dailies",
-				icon = app.asset("Achievement_Dungeon_HEROIC_GloryoftheRaider"), 
+				icon = app.asset("Interface_Questd"), 
 				description = "You can search the ATT Database for all Dailies. All quests displayed are 'incomplete', despite ATT sometimes showing completion for them. If you have a daily 'completed' in ATT, that simply means that you've reached Exalted with the associated reputation if there is one.",
 				visible = true, 
 				expanded = true,

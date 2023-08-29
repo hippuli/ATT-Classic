@@ -230,7 +230,7 @@ app:GetWindow("Random", {
 	
 		self.defaultHeader = {
 			text = "Random - Go Get 'Em!",
-			icon = app.asset("Ability_Rogue_RolltheBones.blp"), 
+			icon = app.asset("WindowIcon_Random"), 
 			description = "This window allows you to randomly select a place or item to get. Go get 'em!",
 			expanded = true,
 			visible = true,
@@ -240,7 +240,7 @@ app:GetWindow("Random", {
 			options = {
 				{
 					text = "Change Search Filter",
-					icon = app.asset("TRADE_ARCHAEOLOGY.blp"), 
+					icon = app.asset("Button_Search"), 
 					description = "Click this to change your search filter.",
 					OnUpdate = app.AlwaysShowUpdate,
 					OnClick = function(row, button)
@@ -250,7 +250,7 @@ app:GetWindow("Random", {
 				},
 				{
 					text = "Reroll",
-					icon = app.asset("ability_monk_roll"),
+					icon = app.asset("Button_Reroll"),
 					description = "Click this button to reroll using the active filter.",
 					visible = true,
 					OnClick = function(row, button)
@@ -267,7 +267,7 @@ app:GetWindow("Random", {
 		};
 		self.filterOptions = {
 			text = "Apply a Search Filter",
-			icon = app.asset("TRADE_ARCHAEOLOGY.blp"), 
+			icon = app.asset("Button_Search"), 
 			description = "Please select a search filter option.",
 			expanded = true,
 			visible = true,
@@ -305,7 +305,7 @@ app:GetWindow("Random", {
 				},
 				{
 					text = "Instance",
-					icon = app.asset("Achievement_Dungeon_HEROIC_GloryoftheRaider"),
+					icon = app.asset("Category_D&R"),
 					description = "Click this button to select a random instance based on what you're missing.",
 					OnUpdate = app.AlwaysShowUpdate,
 					OnClick = function(row, button)
@@ -314,7 +314,7 @@ app:GetWindow("Random", {
 				},
 				{
 					text = "Dungeon",
-					icon = app.asset("Achievement_Dungeon_GloryoftheHERO"),
+					icon = app.asset("Difficulty_Normal"),
 					description = "Click this button to select a random dungeon based on what you're missing.",
 					OnUpdate = app.AlwaysShowUpdate,
 					OnClick = function(row, button)
@@ -323,7 +323,7 @@ app:GetWindow("Random", {
 				},
 				{
 					text = "Raid",
-					icon = app.asset("Achievement_Dungeon_GloryoftheRaider"),
+					icon = app.asset("Difficulty_Heroic"),
 					description = "Click this button to select a random raid based on what you're missing.",
 					OnUpdate = app.AlwaysShowUpdate,
 					OnClick = function(row, button)

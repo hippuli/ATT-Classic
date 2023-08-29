@@ -1,4 +1,3 @@
-
 -- Colors Lib
 local _, app = ...;
 
@@ -37,6 +36,10 @@ app.Colors = {
 	White = "ffFFFFFF",
 };
 
+app.ccColors = {};
+for k,v in pairs (app.Colors) do
+	app.ccColors[k] = "|c"..v;
+end;
 
 -- Blizzard colours
 

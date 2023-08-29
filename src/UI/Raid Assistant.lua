@@ -244,7 +244,7 @@ app:GetWindow("RaidAssistant", {
 				},
 				{	-- Reset Instances
 					text = "Reset Instances",
-					icon = app.asset("Ability_Priest_VoidShift"),
+					icon = app.asset("Button_Reset"),
 					description = "Click here to reset your instances.\n\nAlt+Click to toggle automatically resetting your instances when you leave a dungeon.\n\nWARNING: BE CAREFUL WITH THIS!",
 					priority = 16,
 					OnClick = function(row, button)
@@ -877,7 +877,7 @@ app:GetWindow("RaidAssistant", {
 			-- Raid Assistant Header
 			local raidassistant = {
 				text = "Raid Assistant",
-				icon = app.asset("Achievement_Dungeon_GloryoftheRaider"), 
+				icon = app.asset("WindowIcon_RaidAssistant"), 
 				description = "Never enter the instance with the wrong settings again! Verify that everything is as it should be!",
 				expanded = true,
 				back = 1,

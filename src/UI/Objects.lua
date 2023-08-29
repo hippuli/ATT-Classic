@@ -164,7 +164,7 @@ app:GetWindow("Objects", {
 			};
 			self.data = {
 				text = "Object Debugger",
-				icon = app.asset("Achievement_Dungeon_GloryoftheRaider"), 
+				icon = app.asset("WindowIcon_RaidAssistant"), 
 				description = "This is a contribution debug tool. NOT intended to be used by the majority of the player base.",
 				back = 1,
 				indent = 0,
