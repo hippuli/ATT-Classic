@@ -2,8 +2,8 @@ do
 local appName, app = ...;
 
 -- Global locals
-local ipairs, tinsert, pairs, rawset, type, wipe, setmetatable
-	= ipairs, tinsert, pairs, rawset, type, wipe, setmetatable;
+local ipairs, tinsert, pairs, rawset, type, wipe, setmetatable, rawget
+	= ipairs, tinsert, pairs, rawset, type, wipe, setmetatable, rawget;
 local C_Map_GetAreaInfo = C_Map.GetAreaInfo;
 
 -- App locals
@@ -11,7 +11,7 @@ local contains, classIndex, raceIndex, factionID =
 	app.contains, app.ClassIndex, app.RaceIndex, app.FactionID;
 
 -- Module locals
-local AllCaches = {};
+local AllCaches, runners = {}, {};
 local containerMeta = {
 	__index = function(t, id)
 		if id then
@@ -19,7 +19,7 @@ local containerMeta = {
 			rawset(t, id, container);
 			return container;
 		else
-			error("Attempting to get a nil id to a cache!");
+			error("Attempting to get a nil cache container!");
 		end
 	end,
 };
@@ -275,6 +275,9 @@ local fieldConverters = {
 		CacheField(group, "itemID", value);
 	end,
 	["mapID"] = cacheMapID,
+	["mountID"] = function(group, value)
+		CacheField(group, "spellID", value);
+	end,
 	["npcID"] = cacheCreatureID,
 	["objectID"] = cacheObjectID,
 	["professionID"] = function(group, value)
@@ -404,34 +407,28 @@ local fieldConverters = {
 	end,
 
 	-- Localization Helpers
-	["sins"] = function(group, value)
-		local mapID = group.mapID;
-		if not mapID then
-			-- Generate a unique NEGATIVE mapID and cache the object to it.
-			mapID = nextCustomMapID;
-			nextCustomMapID = nextCustomMapID - 1;
-			group.mapID = mapID;
-			CacheField(group, "mapID", mapID);
-		end
-		for i=1,#value,1 do
-			-- Then uses the ALT_ZONE_TEXT_TO_MAP_ID localizer to force the minilist to display this as if it was a map file.
-			local name = value[i];
-			if name then app.L.ALT_ZONE_TEXT_TO_MAP_ID[name] = mapID; end
-		end
-	end,
 	["zone-text-areaID"] = function(group, value)
 		local mapID = group.mapID;
 		if not mapID then
 			-- Generate a unique NEGATIVE mapID and cache the object to it.
 			mapID = nextCustomMapID;
 			nextCustomMapID = nextCustomMapID - 1;
-			group.mapID = mapID;
+			tinsert(runners, function()
+				if group.maps then
+					tinsert(group.maps, mapID)
+				else
+					group.maps = {mapID};
+				end
+			end);
 			CacheField(group, "mapID", mapID);
 		end
 
 		-- Then uses the ZONE_TEXT_TO_MAP_ID localizer to force the minilist to display this as if it was a map file.
 		local name = C_Map_GetAreaInfo(value);
-		if name then app.L.ZONE_TEXT_TO_MAP_ID[name] = mapID; end
+		if name then
+			app.L.MAP_ID_TO_ZONE_TEXT[mapID] = name;
+			app.L.ZONE_TEXT_TO_MAP_ID[name] = mapID;
+		end
 	end,
 	["zone-text-areas"] = function(group, value)
 		local mapID = group.mapID;
@@ -439,12 +436,21 @@ local fieldConverters = {
 			-- Generate a unique NEGATIVE mapID and cache the object to it.
 			mapID = nextCustomMapID;
 			nextCustomMapID = nextCustomMapID - 1;
-			group.mapID = mapID;
+			tinsert(runners, function()
+				if group.maps then
+					tinsert(group.maps, mapID)
+				else
+					group.maps = {mapID};
+				end
+			end);
 			CacheField(group, "mapID", mapID);
 		end
 		-- Then uses the ZONE_TEXT_TO_MAP_ID localizer to force the minilist to display this as if it was a map file.
 		local name = C_Map_GetAreaInfo(value[1]);
-		if name then app.L.ZONE_TEXT_TO_MAP_ID[name] = mapID; end
+		if name then
+			app.L.MAP_ID_TO_ZONE_TEXT[mapID] = name;
+			app.L.ZONE_TEXT_TO_MAP_ID[name] = mapID;
+		end
 		for i=2,#value,1 do
 			name = C_Map_GetAreaInfo(value[i]);
 			if name then app.L.ALT_ZONE_TEXT_TO_MAP_ID[name] = mapID; end
@@ -488,9 +494,14 @@ local function _CacheFields(group)
 end
 CacheFields = function(group, skipMapCaching)
 	wipe(currentMapCounters);
+	wipe(runners);
 	currentMapCounters[-1] = skipMapCaching and 1 or 0;
 	_CacheFields(group);
+	for i,runner in ipairs(runners) do
+		runner();
+	end
 	wipe(currentMapCounters);
+	wipe(runners);
 	return group;
 end
 
@@ -541,6 +552,12 @@ end
 -- Returns: A table containing all groups which contain a given field.
 local function SearchForFieldContainer(field)
 	return currentCache[field];
+end
+
+-- Returns: The actual table containing all groups which contain a given field
+-- NOTE: Can be nil for simplicity in use
+local function GetRawFieldContainer(field)
+	return rawget(currentCache, field);
 end
 
 -- Returns: A table containing all groups which contain the provided id for a given field.
@@ -631,6 +648,7 @@ app.AllCaches = AllCaches;	-- Needed for now, due to the UpdateRawID function no
 app.CacheField = CacheField;	-- This doesn't seem to have any external uses, apparently was used by Flight Paths at some point.
 app.CacheFields = CacheFields;
 app.CreateDataCache = CreateDataCache;
+app.GetRawFieldContainer = GetRawFieldContainer;
 app.SearchForFieldRecursively = SearchForFieldRecursively;
 app.SearchForFieldContainer = SearchForFieldContainer;
 app.SearchForField = SearchForField;

@@ -22,6 +22,7 @@ local constructor = function(id, t, typeID)
 		return {[typeID] = id};
 	end
 end
+local returnZero = function() return 0; end;
 
 -- Provides a Unique Counter value for the Key referenced on each reference
 local uniques = setmetatable({}, { __index = function(t, key) return 0; end });
@@ -33,6 +34,7 @@ local UniqueCounter = setmetatable({}, {
 		return count;
 	end
 });
+app.UniqueCounter = UniqueCounter;
 
 -- Proper unique hash for a Class Object is not as simple as ID..Value, there are many situations where that does not provide adequate uniqueness
 local function CreateHash(t)
@@ -95,8 +97,9 @@ local function CreateHash(t)
 		return hash;
 	end
 end
+app.CreateHash = CreateHash;
 
--- Represents non-nil default values which are valid for all Classes regardless of Object content
+-- Represents default field evaluation logic for all Classes unless defined within the Class
 local DefaultFields = {
 	-- Cloned groups will not directly have a parent, but they will instead have a sourceParent, so fill in with that instead
 	["parent"] = function(t)
@@ -114,8 +117,10 @@ local DefaultFields = {
 	["repeatable"] = function(t)
 		return t.isDaily or t.isWeekly or t.isMonthly or t.isYearly or t.isWorldQuest;
 	end,
-	["progress"] = function(t) return 0; end,
-	["total"] = function(t) return 0; end,
+	["costProgress"] = returnZero,
+    ["costTotal"] = returnZero,
+	["progress"] = returnZero,
+	["total"] = returnZero,
 };
 
 -- Creates a Base Object Table which will evaluate the provided set of 'fields' (each field value being a keyed function)
@@ -149,6 +154,7 @@ local BaseObjectFields = function(fields, className)
 		end
 	};
 end
+app.BaseObjectFields = BaseObjectFields;
 app.BaseClass = BaseObjectFields(nil, "BaseClass");
 
 app.CreateClass = function(className, classKey, fields, ...)
@@ -174,7 +180,7 @@ app.CreateClass = function(className, classKey, fields, ...)
 		for key,method in pairs(fields) do
 			simpleclass[key] = method;
 		end
-		simpleclass.collectibleAsCost = function(t) return false; end;
+		simpleclass.collectibleAsCost = app.ReturnFalse;
 		simpleclass.collectedAsCost = nil;
 		local simplemeta = BaseObjectFields(simpleclass, "Simple" .. className);
 		fields.simplemeta = function(t) return simplemeta; end;
@@ -198,7 +204,7 @@ app.CreateClass = function(className, classKey, fields, ...)
 					for key,method in pairs(class) do
 						simpleclass[key] = method;
 					end
-					simpleclass.collectibleAsCost = function(t) return false; end;
+					simpleclass.collectibleAsCost = app.ReturnFalse;
 					simpleclass.collectedAsCost = nil;
 					local simplemeta = BaseObjectFields(simpleclass, "Simple" .. className .. args[i]);
 					class.simplemeta = function(t) return simplemeta; end;
@@ -244,6 +250,35 @@ app.ExtendClass = function(baseClassName, className, classKey, fields, ...)
 	return app.CreateClass(className, classKey, fields, ...);
 end
 
+-- Allows wrapping one Type Object with another Type Object. This allows for fall-through field logic
+-- without requiring a full copied definition of identical field functions and raw Object content
+app.WrapObject = function(object, baseObject)
+	if not object or not baseObject then
+		error("Tried to WrapObject with none provided!",object,baseObject)
+	end
+	-- need to preserve the existing object's meta AND return the object being wrapped while also allowing fallback to the base object
+	local objectMeta = getmetatable(object)
+	if not objectMeta then
+		error("Tried to WrapObject which has no metatable! (Wrapping not necessary)")
+	end
+	objectMeta = objectMeta.__index
+	if not objectMeta then
+		error("Tried to WrapObject which has no index!")
+	end
+	if type(objectMeta) == "function" then
+		return setmetatable(object, {
+			__index = function(t, key)
+				return objectMeta(t, key) or baseObject[key];
+			end
+		});
+	end
+	return setmetatable(object, {
+		__index = function(t, key)
+			return objectMeta[key] or baseObject[key];
+		end
+	});
+end
+
 --[[
 -- Proof of Concept with Class Conditionals
 local fields = {
@@ -282,4 +317,3 @@ for i,instance in ipairs({
 	instance.OnTest(instance);
 end
 ]]--
-app.BaseObjectFields = BaseObjectFields;

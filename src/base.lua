@@ -11,9 +11,11 @@ app.EmptyTable = {};
 app.Version = GetAddOnMetadata(appName, "Version");
 if string.match(app.Version, "version") then
 	app.Version = "[Git]";
+	app.IsGit = true;
 else
 	app.Version = "v" .. app.Version;
 end
+app.GameBuildVersion = select(4, GetBuildInfo());
 
 -- ReloadUI slash command (for ease of use)
 SLASH_RELOADUI1 = "/reloadui";
@@ -24,6 +26,10 @@ local assetRootPath = "Interface\\Addons\\" .. appName .. "\\assets\\";
 app.asset = function(path)
 	return assetRootPath .. path;
 end
+app.EmptyFunction = function() end;
+app.ReturnTrue = function() return true; end
+app.ReturnFalse = function() return false; end
+app.ReturnNil = function() return; end
 
 -- External API
 -- TODO: We will use a common API eventually.
@@ -37,18 +43,17 @@ end
 -- Debugging
 -- app.Debugging = true;
 -- app.DebuggingEvents = true;	-- Do not force debug prints to be linked to all the Event spam
--- app.DEBUG_PRINT = true;	-- TODO: Deprecate this variable and use the other one.
 
 -- Consolidated debug-only print with preceding precise timestamp
 local GetTimePreciseSec = GetTimePreciseSec;
 local DEBUG_PRINT_LAST;
 app.PrintDebug = function(...)
 	DEBUG_PRINT_LAST = GetTimePreciseSec();
-	if app.DEBUG_PRINT then print(DEBUG_PRINT_LAST,...) end
+	if app.Debugging then print(DEBUG_PRINT_LAST,...) end
 end
 -- Consolidated debug-only print with precise frame duration since last successful print
 app.PrintDebugPrior = function(...)
-	if app.DEBUG_PRINT then
+	if app.Debugging then
 		local now = GetTimePreciseSec();
 		if DEBUG_PRINT_LAST then
 			local diff = now - DEBUG_PRINT_LAST;
@@ -186,10 +191,11 @@ end
 (function()
 -- Extend the Frame Class and give them ATT-Style Coroutines and Tooltips!
 local coroutineStack = {};
+local tinsert, tremove = tinsert, tremove;
 local function OnCoroutineUpdate()
 	for i=#coroutineStack,1,-1 do
 		if not coroutineStack[i][3]() then
-			table.remove(coroutineStack, i);
+			tremove(coroutineStack, i);
 			if #coroutineStack < 1 then
 				frame:SetScript("OnUpdate", nil);
 				--print("Coroutines Finished.");
@@ -205,7 +211,7 @@ local function Push(self, name, method)
 	end
 	local owner = self.Suffix or (self.GetName and self:GetName()) or self.text;
 	--print(owner, "Push ->", name);
-	table.insert(coroutineStack, { owner, name, method });
+	tinsert(coroutineStack, { owner, name, method });
 end
 local function StartATTCoroutine(self, name, method)
 	if method then
@@ -342,13 +348,13 @@ function app:ShowPopupDialogWithMultiLineEditBox(text, onclick, label)
 			end
 		end)
 		f:SetScript("OnMouseUp", f.StopMovingOrSizing)
-		
+
 		-- ScrollFrame
 		local sf = CreateFrame("ScrollFrame", "ATTEditBoxScrollFrame", ATTEditBox, "UIPanelScrollFrameTemplate")
 		sf:SetPoint("LEFT", 16, 0)
 		sf:SetPoint("RIGHT", -32, 0)
 		sf:SetPoint("BOTTOM", ATTEditBoxButton, "TOP", 0, 0)
-		
+
 		-- Label (conditionally create)
 		if label then
 			local l = f:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge");
@@ -360,7 +366,7 @@ function app:ShowPopupDialogWithMultiLineEditBox(text, onclick, label)
 		else
 			sf:SetPoint("TOP", 0, -16);
 		end
-		
+
 		-- EditBox
 		local eb = CreateFrame("EditBox", "ATTEditBoxEditBox", ATTEditBoxScrollFrame)
 		eb:SetSize(sf:GetSize())
@@ -375,7 +381,7 @@ function app:ShowPopupDialogWithMultiLineEditBox(text, onclick, label)
 			self:GetParent():Hide();
 		end);
 		sf:SetScrollChild(eb)
-		
+
 		-- Resizable
 		f:SetResizable(true)
 		if f.SetResizeBounds then
@@ -383,15 +389,15 @@ function app:ShowPopupDialogWithMultiLineEditBox(text, onclick, label)
 		else
 			f:SetMinResize(150, 100);
 		end
-		
+
 		local rb = CreateFrame("Button", "ATTEditBoxResizeButton", ATTEditBox)
 		rb:SetPoint("BOTTOMRIGHT", -6, 7)
 		rb:SetSize(16, 16)
-		
+
 		rb:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
 		rb:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
 		rb:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
-		
+
 		rb:SetScript("OnMouseDown", function(self, button)
 			if button == "LeftButton" then
 				f:StartSizing("BOTTOMRIGHT")

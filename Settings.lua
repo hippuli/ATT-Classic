@@ -53,16 +53,6 @@ do	-- Add the ATT Settings frame into the WoW Settings options
 		Settings.OpenToCategory(self.name)
 	end
 end
--- Provides a Unique Counter value for the Key referenced on each reference
-settings.UniqueCounter = setmetatable({}, {
-	__index = function(t, key)
-		local trackKey = "_"..key
-		local next = (rawget(t, trackKey) or 0) + 1
-		-- print("UniqueCounter",key,next)
-		t[trackKey] = next
-		return next
-	end
-})
 
 -- Settings Class
 local Things = {
@@ -212,6 +202,7 @@ local TooltipSettingsBase = {
 		["LevelRequirements"] = true,
 		["CompletedBy"] = true,
 		["Updates:AdHoc"] = true,
+		["creatures"] = true,
 	},
 }
 
@@ -848,12 +839,12 @@ ATTSettingsPanelMixin = {
 	-- Reference: https://medium.com/@JordanBenge/creating-a-wow-dropdown-menu-in-pure-lua-db7b2f9c0364
 	CreateDropdown = function(self, opts, OnRefresh)
 		error("DO NOT USE THIS METHOD")
-		local dropdown_name = self:GetName().."DD"..(opts.name or settings.UniqueCounter.CreateDropdown)
+		local dropdown_name = self:GetName().."DD"..(opts.name or app.UniqueCounter.CreateDropdown)
 		local menu_items = opts.items or {}
 		local title_text = opts.title or ""
 		local width = opts.width or 0
 		local default_val = opts.defaultVal or ""
-		local change_func = opts.changeFunc or function() end
+		local change_func = opts.changeFunc or app.EmptyFunction
 		local template = opts.template or "UIDropDownMenuTemplate"
 
 		local dropdown = CreateFrame("Frame", dropdown_name, self, template)
@@ -933,7 +924,7 @@ ATTSettingsPanelMixin = {
 	end,
 	CreateTextbox = function(self, opts, functions)
 
-		local name = self:GetName().."TB"..(opts.name or settings.UniqueCounter.CreateTextbox)
+		local name = self:GetName().."TB"..(opts.name or app.UniqueCounter.CreateTextbox)
 		local title = opts.title
 		local text = opts.text
 		local width = opts.width or 150
@@ -987,7 +978,7 @@ ATTSettingsPanelMixin = {
 	end,
 	CreateButton = function(self, opts, functions)
 
-		local name = self:GetName().."B"..(opts.name or settings.UniqueCounter.CreateButton)
+		local name = self:GetName().."B"..(opts.name or app.UniqueCounter.CreateButton)
 		local text = opts.text
 		local width = opts.width
 		local tooltip = opts.tooltip
@@ -1033,8 +1024,8 @@ ATTSettingsPanelMixin = {
 	-- :CreateCheckBox(text, OnRefresh, OnClick) - create a checkbox attached to the scrollable area
 	CreateScrollFrame = function(self)
 		-- Create the ScrollFrame
-		local scrollFrame = CreateFrame("ScrollFrame", settings:GetName().."SF"..settings.UniqueCounter.AddScrollframe, self, "ScrollFrameTemplate")
-		local child = CreateFrame("Frame", settings:GetName().."SCF"..settings.UniqueCounter.AddScrollableframe)
+		local scrollFrame = CreateFrame("ScrollFrame", settings:GetName().."SF"..app.UniqueCounter.AddScrollframe, self, "ScrollFrameTemplate")
+		local child = CreateFrame("Frame", settings:GetName().."SCF"..app.UniqueCounter.AddScrollableframe)
 		Mixin(child, ATTSettingsPanelMixin);
 		self:RegisterObject(child);
 		scrollFrame:SetScrollChild(child)
@@ -1044,11 +1035,11 @@ ATTSettingsPanelMixin = {
 		-- Move the Scrollbar inside of the frame which it scrolls
 		scrollFrame.ScrollBar:SetPoint("RIGHT", -36, 0)
 
-		-- local scrollFrame = CreateFrame("Frame", settings:GetName().."SF"..settings.UniqueCounter.AddScrollframe, self, "ScrollFrameTemplate")
+		-- local scrollFrame = CreateFrame("Frame", settings:GetName().."SF"..app.UniqueCounter.AddScrollframe, self, "ScrollFrameTemplate")
 		-- scrollFrame:SetClipsChildren(true)
 		-- scrollFrame:EnableMouseWheel(true)
 
-		-- local child = CreateFrame("Frame", settings:GetName().."SCF"..settings.UniqueCounter.AddScrollableframe, scrollFrame)
+		-- local child = CreateFrame("Frame", settings:GetName().."SCF"..app.UniqueCounter.AddScrollableframe, scrollFrame)
 		-- Mixin(child, ATTSettingsPanelMixin)
 		-- self:RegisterObject(child)
 		-- child:SetPoint("TOP")
@@ -1057,7 +1048,7 @@ ATTSettingsPanelMixin = {
 
 		-- local scrollbar
 		-- if SCROLL_FRAME_SCROLL_BAR_TEMPLATE then
-		-- 	scrollbar = CreateFrame("EventFrame", settings:GetName().."SB"..settings.UniqueCounter.AddScrollbar, scrollFrame, SCROLL_FRAME_SCROLL_BAR_TEMPLATE)
+		-- 	scrollbar = CreateFrame("EventFrame", settings:GetName().."SB"..app.UniqueCounter.AddScrollbar, scrollFrame, SCROLL_FRAME_SCROLL_BAR_TEMPLATE)
 		-- 	scrollbar:SetPoint("TOPRIGHT", scrollFrame, -8, 0)
 		-- 	scrollbar:SetPoint("BOTTOMRIGHT", scrollFrame, -8, 0)
 		-- 	scrollbar:SetHideIfUnscrollable(false)
@@ -1082,7 +1073,7 @@ ATTSettingsPanelMixin = {
 		-- 	end
 		-- else
 		-- 	local CurrentValue = 0
-		-- 	scrollbar = CreateFrame("Slider", settings:GetName().."SB"..settings.UniqueCounter.AddScrollbar, scrollFrame, "UIPanelScrollBarTemplate")
+		-- 	scrollbar = CreateFrame("Slider", settings:GetName().."SB"..app.UniqueCounter.AddScrollbar, scrollFrame, "UIPanelScrollBarTemplate")
 		-- 	scrollbar:SetPoint("TOPRIGHT", scrollFrame, 0, -scrollWidth)
 		-- 	scrollbar:SetPoint("BOTTOMRIGHT", scrollFrame, 0, scrollWidth)
 		-- 	scrollbar:SetScript("OnValueChanged", function(self, delta)
@@ -1132,8 +1123,8 @@ Mixin(settings, ATTSettingsPanelMixin);
 -- Create a scrollframe and nested subcategory
 settings.CreateOptionsPage = function(self, name, nested)
 	-- Create the ScrollFrame
-	local scrollFrame = CreateFrame("ScrollFrame", settings:GetName().."SF"..settings.UniqueCounter.AddScrollframe, self, "ScrollFrameTemplate")
-	local scrollChild = CreateFrame("Frame", settings:GetName().."SCF"..settings.UniqueCounter.AddScrollableframe)
+	local scrollFrame = CreateFrame("ScrollFrame", settings:GetName().."SF"..app.UniqueCounter.AddScrollframe, self, "ScrollFrameTemplate")
+	local scrollChild = CreateFrame("Frame", settings:GetName().."SCF"..app.UniqueCounter.AddScrollableframe)
 	Mixin(scrollChild, ATTSettingsPanelMixin);
 	self:RegisterObject(scrollChild);
 	scrollFrame:SetScrollChild(scrollChild)
@@ -4235,7 +4226,7 @@ local buttonCreateProfile = child:CreateButton(
 					return true
 				end
 				-- TODO dialog about existing profile
-				-- app:ShowPopupDialog("Profile already exists!", function() end)
+				-- app:ShowPopupDialog("Profile already exists!", app.EmptyFunction)
 			end
 		-- end
 	end,
@@ -4260,7 +4251,7 @@ local buttonDeleteProfile = child:CreateButton(
 				return true
 			end
 			-- TODO dialog about not deleting a profile
-			-- app:ShowPopupDialog("Profile cannot be deleted!", function() end)
+			-- app:ShowPopupDialog("Profile cannot be deleted!", app.EmptyFunction)
 		end
 	end
 })

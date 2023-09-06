@@ -8,6 +8,7 @@ local type, pairs, tonumber, setmetatable, rawget, tinsert
 
 -- App locals
 local GetRelativeValue = app.GetRelativeValue;
+local containsValue = app.containsValue;
 
 -- Lib Helpers
 local constructor = function(id, t, typeID)
@@ -22,6 +23,7 @@ local constructor = function(id, t, typeID)
 		return {[typeID] = id};
 	end
 end
+local returnZero = function() return 0; end;
 
 -- Provides a Unique Counter value for the Key referenced on each reference
 local uniques = setmetatable({}, { __index = function(t, key) return 0; end });
@@ -33,6 +35,7 @@ local UniqueCounter = setmetatable({}, {
 		return count;
 	end
 });
+app.UniqueCounter = UniqueCounter;
 
 -- Proper unique hash for a Class Object is not as simple as ID..Value, there are many situations where that does not provide adequate uniqueness
 local function CreateHash(t)
@@ -95,18 +98,9 @@ local function CreateHash(t)
 		return hash;
 	end
 end
-
--- Represents non-nil default values which are valid for all Classes regardless of Object content
-local DefaultValues = {
-	["progress"] = 0,
-	["total"] = 0,
-	["costProgress"] = 0,
-	["costTotal"] = 0,
-};
-app.ClassDefaultValues_TEMP = DefaultValues;
+app.CreateHash = CreateHash;
 
 -- Represents default field evaluation logic for all Classes unless defined within the Class
-local containsValue = app.containsValue;
 local DefaultFields = {
 	-- Cloned groups will not directly have a parent, but they will instead have a sourceParent, so fill in with that instead
 	["parent"] = function(t)
@@ -163,8 +157,11 @@ local DefaultFields = {
 		t.nmr = nmr;
 		return nmr;
 	end,
+	["costProgress"] = returnZero,
+    ["costTotal"] = returnZero,
+	["progress"] = returnZero,
+    ["total"] = returnZero,
 };
-app.ClassDefaultFields_TEMP = DefaultFields;
 
 -- Creates a Base Object Table which will evaluate the provided set of 'fields' (each field value being a keyed function)
 local classDefinitions, _cache = {};
@@ -183,27 +180,21 @@ local BaseObjectFields = function(fields, className)
 			class[key] = method;
 		end
 	end
-	
+
 	-- Inject the default fields into the class
-	-- don't need to copy these into every class, just reference them if missing
-	-- for key,method in pairs(DefaultFields) do
-	-- 	if not rawget(class, key) then
-	-- 		class[key] = method;
-	-- 	end
-	-- end
+	for key,method in pairs(DefaultFields) do
+		if not rawget(class, key) then
+			class[key] = method;
+		end
+	end
 	return {
 		__index = function(t, key)
-			_cache = rawget(class, key) or DefaultFields[key];
+			_cache = rawget(class, key);
 			if _cache then return _cache(t); end
-			-- use default key value if existing
-			local def = DefaultValues[key];
-			if def ~= nil then return def; end
-			-- object is a wrapper for another Type object?
-			local base = rawget(t, "__base");
-			if base then return base[key]; end
 		end
 	};
 end
+app.BaseObjectFields = BaseObjectFields;
 app.BaseClass = BaseObjectFields(nil, "BaseClass");
 
 app.CreateClass = function(className, classKey, fields, ...)
@@ -217,24 +208,24 @@ app.CreateClass = function(className, classKey, fields, ...)
 	if not fields then
 		print("Fields must be declared when using CreateClass");
 	end
-	
+
 	-- Ensure that a key field exists!
 	if not fields.key then
 		fields.key = function() return classKey; end;
 	end
-	
+
 	-- If this object supports collectibleAsCost, that means it needs a way to fallback to a version of itself without any cost evaluations should it detect that it doesn't use it anywhere.
 	if fields.collectibleAsCost then
 		local simpleclass = {};
 		for key,method in pairs(fields) do
 			simpleclass[key] = method;
 		end
-		simpleclass.collectibleAsCost = function(t) return false; end;
+		simpleclass.collectibleAsCost = app.ReturnFalse;
 		simpleclass.collectedAsCost = nil;
 		local simplemeta = BaseObjectFields(simpleclass, "Simple" .. className);
 		fields.simplemeta = function(t) return simplemeta; end;
 	end
-	
+
 	local args = { ... };
 	local total = #args;
 	if total > 0 then
@@ -253,7 +244,7 @@ app.CreateClass = function(className, classKey, fields, ...)
 					for key,method in pairs(class) do
 						simpleclass[key] = method;
 					end
-					simpleclass.collectibleAsCost = function(t) return false; end;
+					simpleclass.collectibleAsCost = app.ReturnFalse;
 					simpleclass.collectedAsCost = nil;
 					local simplemeta = BaseObjectFields(simpleclass, "Simple" .. className .. args[i]);
 					class.simplemeta = function(t) return simplemeta; end;
@@ -297,6 +288,35 @@ app.ExtendClass = function(baseClassName, className, classKey, fields, ...)
 		print("Could not find specified base class:", baseClassName);
 	end
 	return app.CreateClass(className, classKey, fields, ...);
+end
+
+-- Allows wrapping one Type Object with another Type Object. This allows for fall-through field logic
+-- without requiring a full copied definition of identical field functions and raw Object content
+app.WrapObject = function(object, baseObject)
+	if not object or not baseObject then
+		error("Tried to WrapObject with none provided!",object,baseObject)
+	end
+	-- need to preserve the existing object's meta AND return the object being wrapped while also allowing fallback to the base object
+	local objectMeta = getmetatable(object)
+	if not objectMeta then
+		error("Tried to WrapObject which has no metatable! (Wrapping not necessary)")
+	end
+	objectMeta = objectMeta.__index
+	if not objectMeta then
+		error("Tried to WrapObject which has no index!")
+	end
+	if type(objectMeta) == "function" then
+		return setmetatable(object, {
+			__index = function(t, key)
+				return objectMeta(t, key) or baseObject[key];
+			end
+		});
+	end
+	return setmetatable(object, {
+		__index = function(t, key)
+			return objectMeta[key] or baseObject[key];
+		end
+	});
 end
 
 --[[

@@ -8,8 +8,8 @@ local C_Timer, GetLootMethod, GetLootThreshold, GetNumGroupMembers, GetRaidRoste
 	  C_Timer, GetLootMethod, GetLootThreshold, GetNumGroupMembers, GetRaidRosterInfo;
 local IsInGroup, IsInInstance, LeaveParty, ResetInstances, SetLootMethod =
 	  IsInGroup, IsInInstance, (C_PartyInfo and C_PartyInfo.LeaveParty or LeaveParty), ResetInstances, SetLootMethod;
-local GetBuildInfo, GetInstanceInfo, ResetInstances, UnitIsGroupLeader =
-	  GetBuildInfo, GetInstanceInfo, ResetInstances, UnitIsGroupLeader;
+local GetInstanceInfo, ResetInstances, UnitIsGroupLeader =
+	  GetInstanceInfo, ResetInstances, UnitIsGroupLeader;
 local GetDifficultyInfo, GetDungeonDifficultyID, GetRaidDifficultyID, GetLegacyRaidDifficultyID = 
 	  GetDifficultyInfo, GetDungeonDifficultyID, GetRaidDifficultyID, GetLegacyRaidDifficultyID;
 local GetLootSpecialization, GetNumSpecializations, GetSpecialization, GetSpecializationInfo, GetSpecializationInfoByID = 
@@ -87,9 +87,7 @@ if GetLootMethod and SetLootMethod then
 		description = function(t)
 			return lootMethodDescriptions[t.id];
 		end,
-		visible = function(t)
-			return true;
-		end,
+		visible = app.ReturnTrue,
 		OnClick = function(t)
 			return setLootMethod;
 		end,
@@ -126,9 +124,7 @@ if GetLootThreshold and SetLootThreshold then
 		description = function(t)
 			return NEWBIE_TOOLTIP_UNIT_LOOT_THRESHOLD;
 		end,
-		visible = function(t)
-			return true;
-		end,
+		visible = app.ReturnTrue,
 		OnClick = function(t)
 			return setLootThreshold;
 		end,
@@ -552,7 +548,7 @@ app:GetWindow("RaidAssistant", {
 								local method = app.CreateLootMethod(key);
 								method.OnUpdate = app.AlwaysShowUpdate;
 								method.parent = data;
-								table.insert(g, method);
+								tinsert(g, method);
 							end
 						end
 						data.visible = true;
@@ -616,7 +612,7 @@ app:GetWindow("RaidAssistant", {
 									else
 										member.isML = isML;
 									end
-									table.insert(data.g, member);
+									tinsert(data.g, member);
 								end
 							end
 						end
@@ -675,7 +671,7 @@ app:GetWindow("RaidAssistant", {
 					description = "Select a new loot threshold.",
 					expanded = true,
 					maximum = 5,
-					minimum = (select(4, GetBuildInfo()) > 11403) and 2 or 0,
+					minimum = app.GameBuildVersion > 11403 and 2 or 0,
 					back = 1,
 					g = {},
 					OnClick = function(row, button)

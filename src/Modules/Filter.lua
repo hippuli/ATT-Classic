@@ -60,7 +60,7 @@ api.SettingsFilters = {}
 -- Allows accessing the direct Filter functions which are sometimes required explicitly
 api.Filters = {}
 
-local AccountFilters, CharacterFilters = {}, {}
+local AccountFilters, CharacterFilters, RawCharacterFilters = {}, {}, {}
 
 -- Helper function to encapsulate simple logic for a 'toggle' filter
 local function DefineToggleFilter(name, filterGroup, filter)
@@ -81,6 +81,11 @@ local function DefineToggleFilter(name, filterGroup, filter)
 		LateSetFilters[name] = nil;
 		-- app.PrintDebug("Late Set Filter",name)
 		filterGroup[name] = filter;
+	end
+
+	-- Keep track of all raw CharacterFilters
+	if filterGroup == CharacterFilters then
+		RawCharacterFilters[name] = filter;
 	end
 end
 
@@ -250,6 +255,8 @@ api.Set.Race = function(active, factionOnly)
 		CharacterFilters.Race = nil;
 	end
 end
+-- manually track Race in CurrentCharacterFilters
+RawCharacterFilters.Race = api.Filters.Race;
 
 -- CustomCollect -- FilterItemClass_CustomCollect
 DefineToggleFilter("CustomCollect", CharacterFilters,
@@ -291,6 +298,8 @@ function(item)
 	-- no level requirement on the group, have to include it
 	return true;
 end);
+-- we actually don't "really" care to have level filter in the RawCharacterFilters... just causes more inaccurate quest reports since level req on every expac changes all the time
+RawCharacterFilters["Level"] = nil;
 
 -- ItemSource
 if C_TransmogCollection then
@@ -472,7 +481,6 @@ local function SettingsCharacterFilters(o)
 	end
 	return true;
 end
-app.CurrentCharacterFilters = SettingsCharacterFilters
 
 -- Represents filters which should be applied during Updates to groups
 local function SettingsFilters(item)	-- FilterItemClass
@@ -519,6 +527,14 @@ local function SettingsFilters_IgnoreBoEFilter(item)	-- FilterItemClass_IgnoreBo
 	end
 end
 api.SettingsFilters.IgnoreBoEFilter = SettingsFilters_IgnoreBoEFilter
+local function CurrentCharacterFilters(o)
+	for name,filter in pairs(RawCharacterFilters) do
+		-- if not filter(o) then PrintExclusionCause(name, o) return end
+		if not filter(o) then return end
+	end
+	return true;
+end
+app.CurrentCharacterFilters = CurrentCharacterFilters
 
 -- TODO: adjust these function names
 -- Used as the general Group filter during updates

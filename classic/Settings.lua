@@ -163,6 +163,7 @@ local TooltipSettingsBase = {
 		["SourceLocations:Things"] = true,
 		["SummarizeThings"] = true,
 		["Warn:Removed"] = true,
+		["creatures"] = true,
 	},
 };
 local UnobtainableSettingsBase = {
@@ -651,7 +652,6 @@ f:SetATTTooltip("Click this button to copy the url to get to my Twitch Channel.\
 f.copypasta = "twitch.tv/crieve";
 settings.twitch = f;
 
-local currentBuild = select(4, GetBuildInfo());
 local reasons = L["UNOBTAINABLE_ITEM_REASONS"];
 local UnobtainableFilterOnClick = function(self)
 	local checked = self:GetChecked();
@@ -674,7 +674,7 @@ local UnobtainableOnRefresh = function(self)
 		self:SetChecked(settings:GetUnobtainableFilter(self.u));
 
 		local minimumBuild = reasons[self.u][4];
-		if minimumBuild and minimumBuild > currentBuild then
+		if minimumBuild and minimumBuild > app.GameBuildVersion then
 			self:Disable();
 			self:SetAlpha(0.2);
 		else
@@ -1475,7 +1475,20 @@ ToysCheckBox.OnTooltip = function(t)
 end
 ToysCheckBox:SetPoint("TOPLEFT", TitlesCheckBox, "BOTTOMLEFT", 0, 4);
 
-local ToysAccountWideCheckBox = settings:CreateCheckBox("Account Wide",
+local ToysAccountWideCheckBox;
+if PlayerHasToy then
+ToysAccountWideCheckBox = settings:CreateCheckBox("Account Wide",
+function(self)
+	self:SetChecked(true);
+	self:Disable();
+	self:SetAlpha(0.2);
+end,
+function(self)
+	-- Do nothing.
+end);
+ToysAccountWideCheckBox:SetATTTooltip("Toys are now account wide!");
+else
+ToysAccountWideCheckBox = settings:CreateCheckBox("Account Wide",
 function(self)
 	self:SetChecked(settings:Get("AccountWide:Toys"));
 	if settings:Get("DebugMode") or not settings:Get("Thing:Toys") then
@@ -1492,6 +1505,7 @@ function(self)
 	app:RefreshDataCompletely("ToysAccountWideCheckBox");
 end);
 ToysAccountWideCheckBox:SetATTTooltip("Toys are not normally tracked account wide in Blizzard's database, but we can do that.");
+end
 ToysAccountWideCheckBox:SetPoint("TOPLEFT", ToysCheckBox, "TOPLEFT", 220, 0);
 
 local ShowMinimapButtonCheckBox = settings:CreateCheckBox("Show the Minimap Button",
@@ -1894,8 +1908,8 @@ end;
 -- Update the default unobtainable states based on build version.
 for u,reason in pairs(reasons) do
 	if reason[4] then
-		if currentBuild >= reason[4] then
-			if reason[5] and currentBuild >= reason[5] then
+		if app.GameBuildVersion >= reason[4] then
+			if reason[5] and app.GameBuildVersion >= reason[5] then
 				UnobtainableSettingsBase.__index[u] = true;
 			else
 				UnobtainableSettingsBase.__index[u] = false;

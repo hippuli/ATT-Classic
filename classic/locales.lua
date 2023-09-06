@@ -145,12 +145,6 @@ local L = {
 		--[" %-%> " .. LFG_TYPE_ZONE] = "",
 		[TRACKER_HEADER_QUESTS] = BATTLE_PET_SOURCE_2,
 	};
-	["CUSTOM_DIFFICULTIES"] = {
-		[-1] = "Raid Finder (5.4)",
-		[-2] = "Flexible (5.4)",
-		[-3] = "Normal (5.4)",
-		[-4] = "Heroic (5.4)",
-	};
 	
 	-- These need to be localized manually.
 	["ACHIEVEMENT_DATA"] = {
@@ -562,6 +556,7 @@ local L = {
 	
 	-- These are alternative map names that we don't want to display, but used for mapID calculations.
 	-- If there is a name provided in the table above, it will prefer that name association.
+	["MAP_ID_TO_ZONE_TEXT"] = {};
 	["ZONE_TEXT_TO_MAP_ID"] = {};
 	["ALT_ZONE_TEXT_TO_MAP_ID"] = {
 		["Gates of Ahn'Qiraj"] = 1451,

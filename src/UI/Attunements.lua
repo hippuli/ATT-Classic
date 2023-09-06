@@ -3,7 +3,7 @@ local appName, app = ...;
 local CloneReference = app.CloneReference;
 
 -- Global locals
-local GetBuildInfo = GetBuildInfo;
+local tinsert = tinsert;
 local ALLIANCE_FACTION_ID = Enum.FlightPathFaction.Alliance;
 local HORDE_FACTION_ID = Enum.FlightPathFaction.Horde;
 
@@ -125,7 +125,7 @@ app:GetWindow("Attunements", {
 					isRaid = true,
 				}),
 			};
-			if select(4, GetBuildInfo()) > 20501 then
+			if app.GameBuildVersion > 20501 then
 				local tbcAttunements = {
 					app.CreateDifficulty(1, {	-- Normal [The Arcatraz]
 						sourceParent = app.CreateMap(269),
@@ -224,7 +224,7 @@ app:GetWindow("Attunements", {
 					if #g < 1 and attunements then
 						for i,attunement in ipairs(attunements) do
 							attunement.parent = data;
-							table.insert(g, attunement);
+							tinsert(g, attunement);
 						end
 					end
 					data.visible = true;

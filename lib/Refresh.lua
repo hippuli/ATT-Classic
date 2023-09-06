@@ -176,6 +176,11 @@ local function CacheAccountWideMiscQuests(accountWideData)
 		58435,	-- Heritage of the Vulpera
 		53721,	-- Heritage of the Zandalari
 		-- etc.
+
+		-- Account Unlocks
+		76390,	-- Inconvenience Fee [Naxxramas]
+		76307,	-- Makeshift Grappling Hook [206473]
+
 	}) do
 		-- If this Character has the Quest completed and it is not marked as completed for Account or not for specific Character
 		if not oneTimeQuests[questID] and IsQuestFlaggedCompleted(questID) then

@@ -511,7 +511,7 @@ ACC_WIDE_DEFAULT = "已追踪 ".. app.ccColors.Account .. ITEM_UPGRADE_DISCOUNT_
 		L.AUDIO_CHANNEL = "声音通道";
 		L.CELEBRATE_COLLECTED_CHECKBOX = "收藏事物触发庆祝音效";
 		L.CELEBRATE_COLLECTED_CHECKBOX_TOOLTIP = "如果你想在获得新的事物时听到庆祝'fanfare'效果请启用这个选项。\n\n这个功能可以极大地帮助你保持动力。";
-		--TODO: L.SOUNDPACK = "Soundpack";
+		L.SOUNDPACK = "声音包";
 		L.WARN_REMOVED_CHECKBOX = "移除事物触发警告";
 		L.WARN_REMOVED_CHECKBOX_TOOLTIP = "如果你想在你不小心卖掉或交易一个给予你外观的物品从而导致收藏中失去该外观时听到警告的声音效果，请启用这个选项。\n\n如果你的商品有购买计时这可能非常有用。该插件会告诉你你犯了一个错误。";
 		L.SCREENSHOT_COLLECTED_CHECKBOX = "收藏物品后触发截图";
@@ -668,11 +668,6 @@ if GetLocale() == "zhTW" then
 	a["『帷幕市集』塔札維許"] = "塔札維許"	-- ["Tazavesh, the Veiled Market"] = "Tazavesh"
 end
 
-L.CUSTOM_DIFFICULTIES[-1] = "团队查找器 (5.4)";
-L.CUSTOM_DIFFICULTIES[-2] = "弹性 (5.4)";
-L.CUSTOM_DIFFICULTIES[-3] = "普通 (5.4)";
-L.CUSTOM_DIFFICULTIES[-4] = "英雄 (5.4)";
-
 local a = L.HEADER_NAMES;
 for key,value in pairs({
 	-- Garrisons
@@ -764,20 +759,6 @@ if GetLocale() == "zhTW" then
 	a[-1120] = "莫魯克半人馬";											-- Maruuk Centaur
 	a[-1130] = "伊斯凱拉巨牙海民";										-- Iskaara Tuskarrccord
 end
-
--- Fall-back 'name' values for Quests based on QuestID
-local a = L.QUEST_NAMES;
-for key,value in pairs({
-	-- [QuestID] = "Name",
-})
-do a[key] = value; end
-
--- Fall-back 'name' values for Items based on ItemID
-local a = L.ITEM_NAMES;
-for key,value in pairs({
-	-- [ItemID] = "Name",
-})
-do a[key] = value; end
 
 local a = L.UNOBTAINABLE_ITEM_REASONS;
 for key,value in pairs({
