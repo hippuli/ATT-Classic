@@ -2343,7 +2343,7 @@ local C_TooltipInfo_GetHyperlink = C_TooltipInfo and C_TooltipInfo.GetHyperlink;
 local IsRetrievingData = app.Modules.RetrievingData.IsRetrievingData;
 if C_TooltipInfo_GetHyperlink then
 	setmetatable(NPCNameFromID, { __index = function(t, id)
-		if id > 0 then
+		if id and id > 0 then
 			local tooltipData = C_TooltipInfo_GetHyperlink(sformat("unit:Creature-0-0-0-0-%d-0000000000",id));
 			if tooltipData then
 				local title = tooltipData.lines[1].leftText;
@@ -5184,6 +5184,7 @@ app.ThingKeys = {
 	["azeriteEssenceID"] = true,
 	["followerID"] = true,
 	["achievementID"] = true,	-- special handling
+	["criteriaID"] = true,	-- special handling
 };
 local SpecificSources = {
 	["headerID"] = {
@@ -5234,6 +5235,7 @@ app.BuildSourceParent = function(group)
 	-- pull all listings of this 'Thing'
 	local keyValue = group[groupKey];
 	local things = specificSource and { group } or app.SearchForLink(groupKey .. ":" .. keyValue);
+	-- app.PrintDebug("BuildSourceParent",groupKey,thingCheck,specificSource,keyValue,#things)
 	if things then
 		local groupHash = group.hash;
 		local isAchievement = groupKey == "achievementID";
@@ -5330,6 +5332,15 @@ app.BuildSourceParent = function(group)
 				-- 	end
 				-- end
 			end
+		end
+		-- Raw Criteria inherently are not directly cached and will not find themselves, so instead
+		-- show their containing Achievement as the Source
+		-- re-popping this Achievement will do normal Sources for all the Criteria and be useful
+		if groupKey == "criteriaID" and #things == 0 then
+			local achID = group.achievementID;
+			parent = app.SearchForObject("achievementID", achID) or { achievementID = achID };
+			if parents then tinsert(parents, parent);
+			else parents = { parent }; end
 		end
 		-- if there are valid parent groups for sources, merge them into a 'Source(s)' group
 		if parents then
@@ -6464,6 +6475,10 @@ local function MarkUniqueCollectedSourcesBySource(knownSourceID, currentCharacte
 	local knownItem = SearchForSourceIDQuickly(knownSourceID);
 	if knownItem then
 		local knownSource = C_TransmogCollection_GetSourceInfo(knownSourceID);
+		if not knownSource then
+			app.PrintDebug("Failed to get source info for",knownSourceID)
+			return;
+		end
 		local acctSources = ATTAccountWideData.Sources;
 		local checkItem, checkSource, valid;
 		local knownRaces, knownClasses, knownFaction, knownFilter = knownItem.races, knownItem.c, knownItem.r, knownItem.f;
@@ -8097,7 +8112,8 @@ local function GetAchievementCriteriaInfoWithoutThrowingADumbassError(achievemen
 	if criteriaID <= GetAchievementNumCriteria(achievementID, hidden) then
 		return GetAchievementCriteriaInfo(achievementID, criteriaID, hidden);
 	elseif app.IsGit then
-		app.print("Invalid Achievement Criteria Index", achievementID, criteriaID);
+		-- Time to sleep for ever little print.
+		-- app.print("Invalid Achievement Criteria Index", achievementID, criteriaID);
 	end
 end
 criteriaFieldsWithIndex.GetInfo = function() return GetAchievementCriteriaInfoWithoutThrowingADumbassError; end;
@@ -8400,12 +8416,6 @@ end	-- Achievement Lib
 -- Artifact Lib
 (function()
 local C_ArtifactUI_GetAppearanceInfoByID = C_ArtifactUI.GetAppearanceInfoByID;
-local artifactItemIDs = {
-	[841] = 133755, -- Underlight Angler [Base Skin]
-	[988] = 133755, -- Underlight Angler [Fisherfriend of the Isles]
-	[989] = 133755, -- Underlight Angler [Fisherfriend of the Isles]
-	[1] = {},		-- Off-Hand ItemIDs
-};
 local fields = {
 	["key"] = function(t)
 		return "artifactID";
@@ -8436,8 +8446,11 @@ local fields = {
 	end,
 	["text"] = function(t)
 		if not t.artifactinfo then return RETRIEVING_DATA; end
+		local id = t.parent;
+		id = id and id.headerID;
 		-- Artifact listing in the Main item sets category just show 'Variant #' but elsewhere show the Item's name
-		if t.parent and t.parent.headerID and (t.parent.headerID <= -5200 and t.parent.headerID >= -5205) then
+		-- TODO: these will likely change to dynamic headers at some point, and need to check against HEADERS constants
+		if id and -5205 <= id and id <= -5200 then
 			return t.variantText;
 		end
 		return t.appearanceText;
@@ -8446,7 +8459,9 @@ local fields = {
 		return t.variantText;
 	end,
 	["variantText"] = function(t)
-		return ColorizeRGB("Variant " .. t.artifactinfo[4], t.artifactinfo[9] * 255, t.artifactinfo[10] * 255, t.artifactinfo[11] * 255);
+		local text = ColorizeRGB("Variant " .. t.artifactinfo[4], t.artifactinfo[9] * 255, t.artifactinfo[10] * 255, t.artifactinfo[11] * 255);
+		t.variantText = text;
+		return text;
 	end,
 	["appearanceText"] = function(t)
 		return "|cffe6cc80" .. (t.artifactinfo[3] or "???") .. "|r";
@@ -8476,48 +8491,37 @@ local fields = {
 		return t.parent and GetRelativeValue(t.parent, "modelRotation") or 45;
 	end,
 	["silentLink"] = function(t)
-		local itemID = t.silentItemID;
+		local itemID = t.itemID;
 		if itemID then
 			-- 1 -> Off-Hand Appearance
 			-- 2 -> Main-Hand Appearance
 			-- return select(2, GetItemInfo(sformat("item:%d::::::::%d:::11:::8:%d:", itemID, app.Level, t.artifactID)));
-			-- local link = sformat("item:%d::::::::%d:::11::%d:8:%d:", itemID, app.Level, t.isOffHand and 1 or 2, t.artifactID);
-			-- print("Artifact link",t.artifactID,itemID,link);
-			return select(2, GetItemInfo(sformat("item:%d:::::::::::11::%d:8:%d:", itemID, t.isOffHand and 1 or 2, t.artifactID)));
+			local link = sformat("item:%d::::::::%d:::11::%d:8:%d:", math.floor(itemID), app.Level, t.isOffHand and 1 or 2, t.artifactID);
+			-- app.PrintDebug("Artifact link",t.artifactID,itemID,link);
+			local link = select(2, GetItemInfo(link));
+			if not link then return end
+			t.silentLink = link;
+			return link;
+		-- else app.PrintDebug("Artifact with no ItemID?",t.artifactID)
 		end
 	end,
-	["silentItemID"] = function(t)
-		local itemID;
-		if t.isOffHand then
-			itemID = artifactItemIDs[1][t.artifactID];
-		else
-			itemID = artifactItemIDs[t.artifactID];
-		end
-		if itemID then
-			return itemID;
-		elseif t.parent and t.parent.headerID and (t.parent.headerID <= -5200 and t.parent.headerID >= -5205) then
-			itemID = GetRelativeValue(t.parent, "itemID");
-			-- Store the relative ItemID in the artifactItemID cache so it can be referenced accurately by artifacts sourced in specific locations
-			if itemID then
-				if t.isOffHand then
-					artifactItemIDs[1][t.artifactID] = itemID;
-				else
-					artifactItemIDs[t.artifactID] = itemID;
-				end
-				-- print("Artifact ItemID Cached",t.artifactID,t.isOffHand,itemID)
-			end
-			return itemID;
-		end
+	["modItemID"] = function(t)
+		-- Artifacts will use a fake modItemID by way of the ArtifactID and IsOffhand
+		local modItemID = t.itemID + (t.isOffHand and 0.0001 or 0) + (t.artifactID / 1000)
+		-- app.PrintDebug("artifact.modItemID",modItemID,t.itemID,t.artifactID,t.isOffHand)
+		t.modItemID = modItemID;
+		return modItemID;
 	end,
+	-- probably never used ever, but just in case an artifact somehow misses it's appearance...
 	["s"] = function(t)
-		-- Return the calculated 's' field if existing
-		if t._s then return t._s; end
 		local s = t.silentLink;
 		if s then
 			s = GetSourceID(s);
 			-- print("Artifact Source",s,t.silentLink)
 			if s and s > 0 then
-				t._s = s;
+				t.s = s;
+				app.SaveHarvestSource(t)
+				app.PrintDebug("SourceID Update",t.silentLink,t.modItemID,"=>",s);
 				if ATTAccountWideData.Sources[s] ~= 1 and C_TransmogCollection_PlayerHasTransmogItemModifiedAppearance(s) then
 					-- print("Saved Known Source",s)
 					ATTAccountWideData.Sources[s] = 1;
@@ -10245,7 +10249,7 @@ local function HandleItemRetries(t)
 	local retries = _t.retries;
 	if retries then
 		if retries > app.MaximumItemInfoRetries then
-			local itemName = L["ITEM_NAMES"][id] or "Item #" .. tostring(id) .. "*";
+			local itemName = L["ITEM_NAMES"][id] or (t.s and L["S_NAMES"][t.s]) or "Item #" .. tostring(id) .. "*";
 			_t.title = L["FAILED_ITEM_INFO"];
 			_t.link = nil;
 			_t.s = nil;
@@ -11358,30 +11362,10 @@ app.GenerateGroupLinkUsingSourceID = function(group)
 end
 -- Adds necessary SourceID information for Item data into the Harvest variable
 app.SaveHarvestSource = function(data)
-	local s, itemID = data.s, data.itemID;
+	local s, itemID = data.s, data.modItemID;
 	if s and itemID then
-		local item = AllTheThingsHarvestItems[itemID];
-		if not item then
-			item = {};
-			-- app.PrintDebug("SAVED SOURCE ID!",data.text,data.modItemID or itemID,"=>",s);
-			AllTheThingsHarvestItems[itemID] = item;
-		end
-		local bonusID = data.bonusID;
-		if bonusID and bonusID > 0 then
-			local bonuses = item.bonuses;
-			if not bonuses then
-				bonuses = {};
-				item.bonuses = bonuses;
-			end
-			bonuses[bonusID] = s;
-		else
-			local mods = item.mods;
-			if not mods then
-				mods = {};
-				item.mods = mods;
-			end
-			mods[data.modID or 0] = s;
-		end
+		AllTheThingsHarvestItems[itemID] = s;
+		return;
 	end
 end
 -- Returns the depth at which a given Item matches the provided modItemID
@@ -13643,23 +13627,27 @@ local function CreateMinimapButton()
 end
 app.CreateMinimapButton = CreateMinimapButton;
 function app:CreateMiniListForGroup(group)
-	-- Is this an achievement criteria or lacking some achievement information?
-	local achievementID = group.achievementID;
-	if achievementID and (group.criteriaID or not group.g) then
-		local searchResults = SearchForField("achievementID", achievementID);
-		if #searchResults > 0 then
-			local bestResult;
-			for i=1,#searchResults,1 do
-				local searchResult = searchResults[i];
-				if searchResult.achievementID == achievementID and not searchResult.criteriaID then
-					if not bestResult or searchResult.g then
-						bestResult = searchResult;
-					end
-				end
-			end
-			if bestResult then group = bestResult; end
-		end
-	end
+	-- Criteria now show their Source Achievement properly
+	-- Achievements already fill out their Criteria information automatically, don't think this is necessary now - Runaway
+	-- Is this an achievement lacking some achievement information?
+	-- local achievementID = not group.criteriaID and group.achievementID;
+	-- if achievementID and not group.g then
+	-- 	app.PrintDebug("Finding better achievement data...",achievementID)
+	-- 	local searchResults = SearchForField("achievementID", achievementID);
+	-- 	if #searchResults > 0 then
+	-- 		local bestResult;
+	-- 		for i=1,#searchResults,1 do
+	-- 			local searchResult = searchResults[i];
+	-- 			if searchResult.achievementID == achievementID and not searchResult.criteriaID then
+	-- 				if not bestResult or searchResult.g then
+	-- 					bestResult = searchResult;
+	-- 				end
+	-- 			end
+	-- 		end
+	-- 		if bestResult then group = bestResult; end
+	-- 		app.PrintDebug("Found",bestResult and bestResult.hash,group,bestResult)
+	-- 	end
+	-- end
 
 	-- Pop Out Functionality! :O
 	local suffix = BuildSourceTextForChat(group, 1)
@@ -19136,7 +19124,7 @@ customWindowUpdates["Random"] = function(self)
 					end}),
 					{
 						['text'] = L["ACHIEVEMENT"],
-						['icon'] = "Interface\\Icons\\Achievement_FeatsOfStrength_Gladiator_10",
+						['icon'] = app.asset("Category_Achievements"),
 						['description'] = L["ACHIEVEMENT_DESC"],
 						['visible'] = true,
 						['OnClick'] = function(row, button)
@@ -19149,7 +19137,7 @@ customWindowUpdates["Random"] = function(self)
 					},
 					{
 						['text'] = L["ITEM"],
-						['icon'] = "Interface\\Icons\\INV_Box_02",
+						['icon'] = app.asset("Interface_Zone_drop"),
 						['description'] = L["ITEM_DESC"],
 						['visible'] = true,
 						['OnClick'] = function(row, button)
@@ -19201,7 +19189,7 @@ customWindowUpdates["Random"] = function(self)
 					},
 					{
 						['text'] = L["MOUNT"],
-						['icon'] = "Interface\\Icons\\Ability_Mount_AlliancePVPMount",
+						['icon'] = app.asset("Category_Mounts"),
 						['description'] = L["MOUNT_DESC"],
 						['visible'] = true,
 						['OnClick'] = function(row, button)
@@ -19214,7 +19202,7 @@ customWindowUpdates["Random"] = function(self)
 					},
 					{
 						['text'] = L["PET"],
-						['icon'] = "Interface\\Icons\\INV_Box_02",
+						['icon'] = app.asset("Category_PetBattles"),
 						['description'] = L["PET_DESC"],
 						['visible'] = true,
 						['OnClick'] = function(row, button)
@@ -19227,8 +19215,7 @@ customWindowUpdates["Random"] = function(self)
 					},
 					{
 						['text'] = L["QUEST"],
-						['icon'] = "Interface\\GossipFrame\\AvailableQuestIcon",
-						['preview'] = "Interface\\Icons\\Achievement_Quests_Completed_08",
+						['icon'] = app.asset("Interface_Quest"),
 						['description'] = L["QUEST_DESC"],
 						['visible'] = true,
 						['OnClick'] = function(row, button)
@@ -19241,7 +19228,7 @@ customWindowUpdates["Random"] = function(self)
 					},
 					{
 						['text'] = L["TOY"],
-						['icon'] = "Interface\\Icons\\INV_Misc_Toy_10",
+						['icon'] = app.asset("Category_ToyBox"),
 						['description'] = L["TOY_DESC"],
 						['visible'] = true,
 						['OnClick'] = function(row, button)
@@ -19254,7 +19241,7 @@ customWindowUpdates["Random"] = function(self)
 					},
 					{
 						['text'] = L["ZONE"],
-						['icon'] = "Interface\\Icons\\INV_Misc_Map_01",
+						['icon'] = app.asset("Category_Zones"),
 						['description'] = L["ZONE_DESC"],
 						['visible'] = true,
 						['OnClick'] = function(row, button)
@@ -19596,31 +19583,22 @@ customWindowUpdates["list"] = function(self, force, got)
 	if not self.initialized then
 		self.VerifyGroupSourceID = function(data)
 			if data._VerifyGroupSourceID then return; end
-			local link, source = data.link, data.s;
+			local link, source = data.link or data.silentLink, data.s;
 			if not link then return; end
 			-- If it doesn't, the source ID will need to be harvested.
-			local s, success = GetSourceID(link) or (data.artifactID and data.s);
+			local s, success = GetSourceID(link);
 			-- app.PrintDebug("SourceIDs",data.modItemID,source,s,success)
 			data._VerifyGroupSourceID = true;
 			if s and s > 0 then
 				-- only save the source if it is different than what we already have, or being forced
-				if not source or source < 1 or source ~= s or data.artifactID then
-					app.print("SourceID Update",link,data.modItemID,source,"=>",s,data.artifactID);
+				if not source or source < 1 or source ~= s then
+					app.print("SourceID Update",link,data.modItemID,source,"=>",s);
 					-- print(GetItemInfo(text))
 					data.s = s;
-					if data.artifactID then
-						local artifact = AllTheThingsArtifactsItems[data.artifactID];
-						if not artifact then
-							artifact = {};
-						end
-						artifact[data.isOffHand and 1 or 2] = s;
-						AllTheThingsArtifactsItems[data.artifactID] = artifact;
-					else
-						app.SaveHarvestSource(data);
-					end
+					app.SaveHarvestSource(data);
 				end
 			elseif success then
-				print("Success without a SourceID", link);
+				-- app.print("Success without a SourceID", link);
 			end
 		end
 		self.RemoveSelf = function(o)
@@ -19720,12 +19698,11 @@ customWindowUpdates["list"] = function(self, force, got)
 				min = 0;
 			end
 			dataType = cacheKey;
-			for itemID,groups in pairs(app.GetRawFieldContainer(dataType) or app.GetRawFieldContainer(cacheKeyID) or app.EmptyTable) do
+			for _,groups in pairs(app.GetRawFieldContainer(cacheKey) or app.GetRawFieldContainer(cacheKeyID) or app.EmptyTable) do
 				for _,o in ipairs(groups) do
 					cacheID = tonumber(o.modItemID or o[dataType] or o[cacheKeyID]);
-					if imin < cacheID and cacheID < imax and not added[cacheID] then
+					if imin <= cacheID and cacheID <= imax and not added[cacheID] then
 						added[cacheID] = true;
-						-- app.PrintDebug("cachelist:",dataType,cacheID)
 						tinsert(CacheFields, cacheID);
 					end
 				end
