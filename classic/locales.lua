@@ -62,6 +62,11 @@ local L = {
 	["REQUIRES"] = "Requires";
 	["REQUIRES_LEVEL"] = "Requires Level";
 	["LIMITED_QUANTITY"] = "This has a limited quantity and may not always be present on the vendor.";
+	["ADDED_WITH_PATCH_FORMAT"] = "This gets added with patch %s";
+	["ADDED_BACK_WITH_PATCH_FORMAT"] = "This gets added back with patch %s";
+	["REMOVED_WITH_PATCH_FORMAT"] = "This gets removed with patch %s";
+	["WAS_ADDED_WITH_PATCH_FORMAT"] = "This was added with patch %s";
+	["WAS_ADDED_BACK_WITH_PATCH_FORMAT"] = "This was added back with patch %s";
 
 	-- Filter Text
 	["ACHIEVEMENT_ID"] = "Achievement ID";
@@ -557,6 +562,7 @@ local L = {
 	-- These are alternative map names that we don't want to display, but used for mapID calculations.
 	-- If there is a name provided in the table above, it will prefer that name association.
 	["MAP_ID_TO_ZONE_TEXT"] = {};
+	["QUEST_ID_TO_MAP_ID"] = {};
 	["ZONE_TEXT_TO_MAP_ID"] = {};
 	["ALT_ZONE_TEXT_TO_MAP_ID"] = {
 		["Gates of Ahn'Qiraj"] = 1451,
@@ -648,6 +654,14 @@ L["SPELL_NAME_TO_SPELL_ID"] = {
 	["약초채집"] = 2366,
 	["草药学"] = 2366,
 	["草藥學"] = 2366,
+	
+	-- French (Classic Era)
+	["Ingénierie"] = 4036,    -- Engineering
+	["Secourisme"] = 3273,    -- First Aid
+	
+	-- Spanish (Classic Era)
+	["Costura"] = 3908,	-- Tailoring
+	["Marroquinería"] = 2108,    -- Leatherworking
 	
 	["Ganzúa"] = 1809,		-- Lock Pick	-- Required for ES (EU)
 	["Desollar"] = 8613,	-- Skinning		-- Required for ES (EU)

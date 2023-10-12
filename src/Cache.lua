@@ -11,7 +11,7 @@ local contains, classIndex, raceIndex, factionID =
 	app.contains, app.ClassIndex, app.RaceIndex, app.FactionID;
 
 -- Module locals
-local AllCaches, runners = {}, {};
+local AllCaches, AllGamePatches, runners, QuestTriggers = {}, {}, {}, {}
 local containerMeta = {
 	__index = function(t, id)
 		if id then
@@ -346,7 +346,7 @@ local fieldConverters = {
 		-- Retail used this commented out section instead, see which one is better
 		-- don't cache mapID from coord for anything which is itself an actual instance or a map
 		-- if currentInstance ~= group and not rawget(group, "mapID") and not rawget(group, "difficultyID") then
-		if not (group.instanceID or group.mapID or group.objectiveID) then
+		if not (group.instanceID or group.mapID or group.objectiveID or group.difficultyID) then
 			return cacheMapID(group, coord[3]);
 		end
 	end,
@@ -354,7 +354,7 @@ local fieldConverters = {
 		-- Retail used this commented out section instead, see which one is better
 		-- don't cache mapID from coord for anything which is itself an actual instance or a map
 		-- if currentInstance ~= group and not rawget(group, "mapID") and not rawget(group, "difficultyID") then
-		if not (group.instanceID or group.mapID or group.objectiveID) then
+		if not (group.instanceID or group.mapID or group.objectiveID or group.difficultyID) then
 			for i,coord in ipairs(coords) do
 				cacheMapID(group, coord[3]);
 			end
@@ -407,6 +407,54 @@ local fieldConverters = {
 	end,
 
 	-- Localization Helpers
+	["zone-quest"] = function(group, value)
+		-- If this group uses a normal map, we want to rip out the cache for it.
+		-- Doing it after the cache is finished allows us to still prevent the coordinates
+		-- on relative objects and npcs from getting cached to the parent mapID.
+		local originalMaps = group.maps;
+		local originalMapID = group.mapID or (originalMaps and originalMaps[1]);
+		if originalMapID then
+			-- Generate a unique NEGATIVE mapID and cache the object to it.
+			local mapID = nextCustomMapID;
+			nextCustomMapID = nextCustomMapID - 1;
+			tinsert(runners, function()
+				group.questID = value;
+				if originalMaps then
+					if group.mapID then
+						tinsert(originalMaps, mapID);
+					else
+						group.mapID = nil;
+					end
+				else
+					group.maps = {mapID};
+				end
+			end);
+			-- Is there a situation where we would actually want the associated quest to show the data for the group since NOT being flagged is the trigger for it being available...?
+			CacheField(group, "questID", value);
+			CacheField(group, "mapID", mapID);
+
+			local mapIDCache = currentCache.mapID;
+			tinsert(runners, function()
+				mapIDCache = mapIDCache[originalMapID];
+				for i,o in ipairs(mapIDCache) do
+					if o == group then
+						table.remove(mapIDCache, i);
+
+						local questIDs = app.L.QUEST_ID_TO_MAP_ID[originalMapID];
+						if not questIDs then
+							questIDs = {};
+							app.L.QUEST_ID_TO_MAP_ID[originalMapID] = questIDs;
+						end
+						questIDs[value] = mapID;
+						app.L.MAP_ID_TO_ZONE_TEXT[mapID] = group.text;
+						break;
+					end
+				end
+			end);
+			-- This questID needs to be used to automatically trigger minilist rebuilds when state-changed
+			tinsert(QuestTriggers, value)
+		end
+	end,
 	["zone-text-areaID"] = function(group, value)
 		local mapID = group.mapID;
 		if not mapID then
@@ -456,7 +504,22 @@ local fieldConverters = {
 			if name then app.L.ALT_ZONE_TEXT_TO_MAP_ID[name] = mapID; end
 		end
 	end,
+
+	-- Patch Helpers
+	["awp"] = function(group, value)
+		if value then AllGamePatches[value] = true; end
+	end,
 };
+
+---- Retail Differences ----
+if tonumber(app.GameBuildVersion) > 100000 then
+	-- 'altQuests' in Retail pretending to be the same quest as a different quest actually causes problems for searches
+	-- and it makes more sense to not pretend they're the same than to hamper existing logic with more conditionals to
+	-- make sure we actually get the data that we search for
+	fieldConverters.altQuests = nil;
+	-- 'awp' isn't needed for caching into 'AllGamePatches' currently... I don't really see a future where we 'pre-add' future Retail content in public releases
+	fieldConverters.awp = nil;
+end
 
 local _converter;
 local function _CacheFields(group)
@@ -565,6 +628,30 @@ local function SearchForField(field, id)
 	return SearchForFieldContainer(field)[id], field, id;
 end
 
+-- Returns: A table containing all groups which contain the provided id for a given field from all established data caches.
+local function SearchForFieldInAllCaches(field, id)
+	local ArrayAppend = app.ArrayAppend;
+	local groups = {};
+	for _,cache in pairs(AllCaches) do
+		ArrayAppend(groups, cache[field][id]);
+	end
+	return groups;
+end
+
+-- Returns: A table containing all groups which contain the provided each of the provided ids for a given field from all established data caches.
+local function SearchForManyInAllCaches(field, ids)
+	local ArrayAppend = app.ArrayAppend;
+	local groups = {};
+	local fieldCache;
+	for _,cache in pairs(AllCaches) do
+		fieldCache = cache[field];
+		for _,id in ipairs(ids) do
+			ArrayAppend(groups, fieldCache[id]);
+		end
+	end
+	return groups;
+end
+
 -- Search a group for all items relative to the given group. (excluding the group passed in)
 local function SearchForRelativeItems(group, listing)
 	if group and group.g then
@@ -584,7 +671,7 @@ local function SearchForSourceIDQuickly(sourceID)
 	if sourceID then return SearchForField("s", sourceID)[1]; end
 end
 
--- Search a group for a objects whose hash matches a hash found in hashes and append it to table t.
+-- Search a group for objects whose hash matches a hash found in hashes and append it to table t.
 local function SearchForSpecificGroups(t, group, hashes)
 	if group then
 		if hashes[group.hash] then
@@ -644,17 +731,20 @@ local function VerifyCache()
 end
 
 -- External API Functions
-app.AllCaches = AllCaches;	-- Needed for now, due to the UpdateRawID function not being able to be moved into this file yet. TODO: Move it and then remove this.
-app.CacheField = CacheField;	-- This doesn't seem to have any external uses, apparently was used by Flight Paths at some point.
+app.AllGamePatches = AllGamePatches;
 app.CacheFields = CacheFields;
 app.CreateDataCache = CreateDataCache;
 app.GetRawFieldContainer = GetRawFieldContainer;
 app.SearchForFieldRecursively = SearchForFieldRecursively;
 app.SearchForFieldContainer = SearchForFieldContainer;
 app.SearchForField = SearchForField;
+app.SearchForFieldInAllCaches = SearchForFieldInAllCaches;
+app.SearchForManyInAllCaches = SearchForManyInAllCaches;
 app.SearchForRelativeItems = SearchForRelativeItems;
 app.SearchForSourceIDQuickly = SearchForSourceIDQuickly;
 app.SearchForSpecificGroups = SearchForSpecificGroups;
 app.VerifyCache = VerifyCache;
 app.VerifyRecursion = VerifyRecursion;
+-- this table is deleted once used
+app.__CacheQuestTriggers = QuestTriggers;
 end

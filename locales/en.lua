@@ -94,12 +94,12 @@ local L = {
 	["_AND"] = " and";
 	["_MORE"] = " more";
 	["_OTHER_SOURCES"] = " other sources";
-	["DURING_WQ_ONLY"] = "This can be completed when the world quest is active.";
-	["COMPLETED_DAILY"] = "This can be completed daily.";
-	["COMPLETED_WEEKLY"] = "This can be completed weekly.";
-	["COMPLETED_MONTHLY"] = "This can be completed monthly.";
-	["COMPLETED_YEARLY"] = "This can be completed yearly.";
-	["COMPLETED_MULTIPLE"] = "This can be repeated multiple times.";
+	["DURING_WQ_ONLY"] = "Can be completed when the World Quest is active";
+	["COMPLETED_DAILY"] = "Can be completed daily";
+	["COMPLETED_WEEKLY"] = "Can be completed weekly";
+	["COMPLETED_MONTHLY"] = "Can be completed monthly";
+	["COMPLETED_YEARLY"] = "Can be completed yearly";
+	["COMPLETED_MULTIPLE"] = "Can be repeated multiple times";
 	["CRITERIA_FOR"] = "Criteria for";
 	["CURRENCY_FOR"] = "Currency for";
 	["LOOT_TABLE_CHANCE"] = "Loot Table Chance";
@@ -130,7 +130,6 @@ local L = {
 	["BOUNTY_DESC"] = "This list contains Unobtainable items that the ATT Discord has reported as bugs that Blizzard has yet to fix.\n\nNOTE: All filters are ignored within this list for visibility. Only items removed from the game due to negligence rather than a gigantic fire breathing dragon are present on this list.\n\nTo Blizzard Devs: Please fix the items and encounters listed below.";
 	["OPEN_AUTOMATICALLY"] = "Open Automatically";
 	["OPEN_AUTOMATICALLY_DESC"] = "If you aren't a Blizzard Developer, it might be a good idea to uncheck this. This was done to force Blizzard to fix and/or acknowledge these bugs.";
-	["TWO_CLOAKS"] = "|cffFF0000These two cloaks have very limited confirmed drops if any and are presumed broken!|r";
 	["OGOM_THE_MANGLER_DESC"] = "|cffFF0000Ogom the Mangler seems just to spawn when you are doing the Daily 'Assault on the Iron Siegeworks'. This Quest wasn't active since the start of Legion and the buyable Quest 'Missive: Assault on the Iron Siegeworks' does not work either.|r";
 	["DIFF_COMPLETED_1"] = "You have collected everything from this difficulty. Switch to ";
 	["DIFF_COMPLETED_2"] = " instead.";
@@ -226,8 +225,8 @@ local L = {
 	["REFRESHING_COLLECTION"] = "Refreshing collection...";
 	["DONE_REFRESHING"] = "Done refreshing collection.";
 	["ADHOC_UNIQUE_COLLECTED_INFO"] = "This Item is Unique-Collected but failed to be detected due to missing Blizzard API information.\n\nIt will be fixed after the next Force-Refresh.";
-	["REQUIRES_PVP"] = "|CFF00FFDEThis Thing requires Player vs Player activities or a currency related to those activities.|r";
-	["REQUIRES_PETBATTLES"] = "|CFF00FFDEThis Thing requires Pet Battling.|r";
+	["REQUIRES_PVP"] = "|CFF00FFDERequires PvP Activities or Currencies|r";
+	["REQUIRES_PETBATTLES"] = "|CFF00FFDERequires Pet Battling|r";
 	["REPORT_INACCURATE_QUEST"] = "Wrong Quest Info! (Click to Report)";
 	["NESTED_QUEST_REQUIREMENTS"] = "Nested Quest Requirements";
 	["MAIN_LIST_REQUIRES_REFRESH"] = "[Open Main list to update progress]";
@@ -242,6 +241,8 @@ local L = {
 	["FORCE_REFRESH_REQUIRED"] = "This may require a Force Refresh ("..SHIFT_KEY_TEXT.." click) to properly be collected.";
 	["FUTURE_UNOBTAINABLE"] = "Future Unobtainable!";
 	["FUTURE_UNOBTAINABLE_TOOLTIP"] = "This is content that has been confirmed or is highly-probable to be made unobtainable in a known future patch.";
+	["NEW_WITH_PATCH"] = "Newly Added Things";
+	["NEW_WITH_PATCH_TOOLTIP"] = "This shows you all of the content that has been added with the latest patch of the game.";
 	["TRADING_POST"] = "Trading Post";
 
 	["TIER_DATA"] = {
@@ -456,7 +457,7 @@ local L = {
 	["DYNAMIC_CATEGORY_SIMPLE_TOOLTIP"] = "Generate Dynamic Categories based only on the very highest Category.";
 	["DYNAMIC_CATEGORY_NESTED"] = "Nested";
 	["DYNAMIC_CATEGORY_NESTED_TOOLTIP"] = "Generate Dynamic Categories based on their exact Source. This will lead to duplicates of Things that are also Sourced in multiple places.";
-	["DYNAMIC_CATEGORY_TOOLTIP_NOTE"] = "\n\n|cffff0000Requires Reload|r";
+	["DYNAMIC_CATEGORY_TOOLTIP_NOTE"] = "\n\n|cffff0000Applied when Generated|r";
 	["CLICK_TO_CREATE_FORMAT"] = "Click to Create %s";
 	["LOADING_FORMAT"] = "%s "..LFG_LIST_LOADING;	-- %s Loading...
 	["READY_FORMAT"] = "%s "..READY;	-- %s Ready
@@ -612,6 +613,8 @@ local L = {
 	["AUCTION_TAB_CHECKBOX_TOOLTIP"] = "Enable this option if you want to see the Auction House Module provided with ATT.\n\nSome addons are naughty and modify this frame extensively. ATT doesn't always play nice with those toys.";
 	["SORT_BY_PROGRESS_CHECKBOX"] = "Sort By Progress";
 	["SORT_BY_PROGRESS_CHECKBOX_TOOLTIP"] = "Enable this option if you want the 'Sort' operation ("..SHIFT_KEY_TEXT.." right click) to sort by the total progress of each group (instead of by Name)";
+	["NPC_DATA_NESTED_CHECKBOX"] = "Show Nested NPC Data";
+	["NPC_DATA_NESTED_CHECKBOX_TOOLTIP"] = "Enable this option if you want to nest all relevant data to a given npc (Common Boss Drops, Drops, etc) when shown in a mini list. This option may cause a significant amount of duplication, but the idea is that the npc will remain visible on the mini list as if you need something specific to that npc.\n\nDefault: Off";
 	["QUEST_CHAIN_NESTED_CHECKBOX"] = "Show Nested Quest Chains";
 	["QUEST_CHAIN_NESTED_CHECKBOX_TOOLTIP"] = "Enable this option if you want the Quest Chain Requirements (Right-Click on Quest) window to show required Quests as sub-groups of their following Quests, i.e. they must be completed from the inside out.\n\nThis is useful to not miss Breadcrumb Quests and should be used primarily for Quest completion in mind.\n\nOtherwise, Quest Chain Requirements will be displayed in a top-down list, with the earliest available Quest at the very top.";
 	["CELEBRATIONS_LABEL"] = "Celebrations & Sound Effects";
@@ -631,7 +634,7 @@ local L = {
 	["ICON_LEGEND_LABEL"] = "Icon Legend";
 	["ICON_LEGEND_TEXT"] = app.ccColors.White .. "|TInterface\\AddOns\\AllTheThings\\assets\\status-unobtainable.blp:0|t " .. "Unobtainable" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-prerequisites.blp:0|t " .. "Obtainable only with prerequisites" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-seasonal-unavailable.blp:0|t " .. "Seasonal content" .. "\n|TInterface\\FriendsFrame\\StatusIcon-Offline:0|t " .. "Unavailable on current character";
 	["CHAT_COMMANDS_LABEL"] = "Chat Commands";
-	["CHAT_COMMANDS_TEXT"] = "/att |cffFFFFFFor|R /things |cffFFFFFFor|R /allthethings\n|cffFFFFFFOpens the Main List.\n\n|R/att mini |cffFFFFFFor|R /attmini\n|cffFFFFFFOpens the Mini List.\n\n|R/att bounty\n|cffFFFFFFOpens a list of bugged or unconfirmed items.\n\n|R/att ra |cffFFFFFFor|R /attra\n|cffFFFFFFOpens the Raid Assistant.\n\n|R/att wq |cffFFFFFFor|R /attwq\n|cffFFFFFFOpens the World Quests List.\n\n|R/att item:1234 |cffFFFFFFor|R /att [Item Link]\n|cffFFFFFFOpens a window with shared appearances. Also works with other things, such as|R quest:1234|cffFFFFFF, |Rnpcid:1234|cffFFFFFF, |Rmapid:1234|cffFFFFFF or |Rrecipeid:1234|cffFFFFFF.\n\n|R/att rwp\n|cffFFFFFFShows all future Removed With Patch things.\n\n|R/att random |cffFFFFFFor|R /attrandom |cffFFFFFFor|R /attran\n|cffFFFFFFOpens the Random List.\n\n|R/att unsorted\n|cffFFFFFFOpens a list of unsourced items. Best opened in Debug Mode.\n\n|R/rl\n|cffFFFFFFReload your WoW interface.|R";
+	["CHAT_COMMANDS_TEXT"] = "/att |cffFFFFFFor|R /things |cffFFFFFFor|R /allthethings\n|cffFFFFFFOpens the Main List.\n\n|R/att mini |cffFFFFFFor|R /attmini\n|cffFFFFFFOpens the Mini List.\n\n|R/att bounty\n|cffFFFFFFOpens a list of bugged or unconfirmed items.\n\n|R/att ra |cffFFFFFFor|R /attra\n|cffFFFFFFOpens the Raid Assistant.\n\n|R/att wq |cffFFFFFFor|R /attwq\n|cffFFFFFFOpens the World Quests List.\n\n|R/att item:1234 |cffFFFFFFor|R /att [Item Link]\n|cffFFFFFFOpens a window with shared appearances. Also works with other things, such as|R quest:1234|cffFFFFFF, |Rnpcid:1234|cffFFFFFF, |Rmapid:1234|cffFFFFFF or |Rrecipeid:1234|cffFFFFFF.\n\n|R/att rwp\n|cffFFFFFFShows all future Removed With Patch things.\n\n|R/att nwp\n|cffFFFFFFShows all current New With Patch things.\n\n|R/att random |cffFFFFFFor|R /attrandom |cffFFFFFFor|R /attran\n|cffFFFFFFOpens the Random List.\n\n|R/att unsorted\n|cffFFFFFFOpens a list of unsourced items. Best opened in Debug Mode.\n\n|R/rl\n|cffFFFFFFReload your WoW interface.|R";
 
 	-- Profiles tab
 	["PROFILES_PAGE"] = "Profiles";
@@ -714,8 +717,11 @@ local L = {
 	["SECRETS_HEADER"] = "Secrets";
 	["LIMITED_QUANTITY"] = "This has a limited quantity and may not always be present on the vendor.";
 	["SOURCE_ID_MISSING"] = "Please report this Item and where it was acquired to the ATT Discord in #retail-errors!";
-	["ADDED_WITH_PATCH_FORMAT"] = "This gets added or expanded with new source(s) in patch %s";
-	["REMOVED_WITH_PATCH_FORMAT"] = "This gets removed in patch %s";
+	["ADDED_WITH_PATCH_FORMAT"] = "Added with patch %s";
+	["WAS_ADDED_WITH_PATCH_FORMAT"] = "Newly added with patch %s";
+	["ADDED_BACK_WITH_PATCH_FORMAT"] = "Added back with patch %s";
+	["WAS_ADDED_BACK_WITH_PATCH_FORMAT"] = "Newly added back with patch %s";
+	["REMOVED_WITH_PATCH_FORMAT"] = "Will be removed with patch %s";
 
 	-- Filter Text
 	["ACHIEVEMENT_ID"] = "Achievement ID";
@@ -775,8 +781,8 @@ local L = {
 	-- TODO @DeadSerious: NEED GOOD UPGRADE ICON
 	["UPGRADE_ICON"] = "|T" .. app.asset("Interface_Upgrade") .. ":0|t";
 	["UPGRADE_TEXT"] = "|T" .. app.asset("Interface_Upgrade") .. ":0|t |cff62e37e"..UPGRADE.."|r";
-	["REAGENT_ICON"] = "|T" .. app.asset("Category_Crafting") .. ":0|t";
-	["REAGENT_TEXT"] = "|T" .. app.asset("Category_Crafting") .. ":0|t |cffdedade"..GetItemClassInfo(5).."|r";
+	["REAGENT_ICON"] = "|T" .. app.asset("Interface_Reagent") .. ":0|t";
+	["REAGENT_TEXT"] = "|T" .. app.asset("Interface_Reagent") .. ":0|t |cffdedade"..GetItemClassInfo(5).."|r";
 
 	-- These are solely used to condense the length of Source strings within Tooltips
 	["ABBREVIATIONS"] = {
@@ -804,6 +810,8 @@ local L = {
 		["Dragonflight"] = "DF",
 		["Aberrus, the Shadowed Crucible"] = "Aberrus",
 		["Kazzara, the Hellforged"] = "Kazzara",
+		["WoW's Anniversary %> "] = "",
+		["Dragonriding Cup %> "] = "",
 		["Player vs Player"] = "PvP",
 		["Raid Finder"] = "LFR",
 		["Looking For Raid"] = "LFR",
@@ -813,7 +821,7 @@ local L = {
 		["10 Player"] = "10M",
 		["10 Player (Heroic)"] = "10M (H)",
 		["25 Player"] = "25M",
-		["25 Player (Heroic)"] = "25M (H)",		
+		["25 Player (Heroic)"] = "25M (H)",
 		[BATTLEGROUNDS] = "BGs",
 		[BLACK_MARKET_AUCTION_HOUSE] = "BMAH",
 		["Emissary Quests"] = "Emissary",
@@ -829,7 +837,7 @@ local L = {
 		["Monthly World Events"] = CALENDAR_REPEAT_MONTHLY,
 		[TRACKER_HEADER_WORLD_QUESTS] = "WQ",
 		["Weekly World Events"] = CALENDAR_REPEAT_WEEKLY,
-		
+
 		["Covenant:"] = "Cov:",
 		[CLASS.." %> "] = "",
 		["Quartermaster Miranda Breechlock"] = "Quartermaster Miranda",
@@ -852,7 +860,7 @@ local L = {
 
 		[1168] = 461821,	-- Guild
 	};
-	
+
 	-- These need to be localized manually.
 	-- Can also use the direct IconID, i.e. wowhead.com/icon=###
 	-- https://www.wowhead.com/icons
@@ -1258,17 +1266,18 @@ local L = {
 		[-10081] = "Corrupted Area",
 		[-10082] = "Lost Area",
 	};
-	
+
 	-- Deprecated! (move these eventually)
 	["HEADER_DESCRIPTIONS"] = {};
 	["HEADER_EVENTS"] = {};
 	["HEADER_LORE"] = {};
 	["EVENT_REMAPPING"] = {};
 	["EVENT_TOOLTIPS"] = {};
-	
+
 	-- These are alternative map names that we don't want to display, but used for mapID calculations.
 	-- If there is a name provided in the table above, it will prefer that name association.
 	["MAP_ID_TO_ZONE_TEXT"] = {};
+	["QUEST_ID_TO_MAP_ID"] = {};
 	["ZONE_TEXT_TO_MAP_ID"] = {};
 	["ALT_ZONE_TEXT_TO_MAP_ID"] = {
 		["Gates of Ahn'Qiraj"] = 1451,
@@ -1276,7 +1285,7 @@ local L = {
 		["The Battle for Mount Hyjal"] = 329,
 		["The Eye"] = 334,
 	};
-	
+
 	-- Module Localizations
 	["PVP_RANK_DESCRIPTION"] = "There are a total of 14 ranks for both factions. Each rank requires a minimum amount of Rating Points to be calculated every week, then calculated in comparison to other players on your server.\n\nEach rank grants access to different rewards, from PvP consumables to Epic Mounts that do not require Epic Riding Skill and Epic pieces of gear at the highest ranks. Each rank is also applied to your character as a Title.";
 
@@ -1297,16 +1306,16 @@ local L = {
 		-- Arbitrary Filters
 		[9] = {3, "|CFFFF0000The original source of obtaining this has been removed and is now only available via the Black Market Auction House.|r", "Black Market AH [BMAH]"},
 		[10] = {3, "|CFFFF0000Originally obtained via a TCG card that is no longer in print, but may still be available via the Black Market, In-Game, or Real Life Auction House.|r", "Trading Card Game [TCG]"},
-		[11] = {2, "|CFFFF0000This is no longer available unless you know someone that has access to the items used to summon the boss.|r", "Requires Summoning Items"},
+		[11] = {2, "|CFFFF0000This is no longer available unless you know someone that has access to the items used to summon the boss.\nNote: Most Summoning Items can be reobtained if you had them in the past by talking to the respective NPC.|r", "Requires Summoning Items"},
 		-- [13] = {1, "|CFFFF0000Your followers are too high and the mission for the cache will no longer spawn.|r", "Legacy Cache"}, Comment: Didnt find this filter used anywhere.
-		[15] = {1, "|CFFFF0000This cannot be permanently learned or used for transmog.|r", "Unlearnable"},
+		[15] = {1, "|CFFFF0000This cannot be permanently collected, learned or used for transmog.|r", "Unlearnable"},
 		[35] = {3, "|CFFFF0000This is locked behind a paywall such as the in-game shop, another Blizzard product, or the Recruit-A-Friend service.|r", "Blizzard Balance"},
 		--[36] = {1, "|CFFFF0000This was only obtainable during the WoW Anniversary when it was active and is no longer available.|r", "WoW Anniversary [Removed]"}, -- not used in Retail... I was confused with seasonal filter.
 		[38] = {2, "|CFFFF0000This is only available to players that completed the Legendary Cloak quest chain during Mists of Pandaria or via the BMAH.|r", "Ordos - Legendary Cloak"},
 		-- #if BEFORE BFA
 		--[41] = {1, "|CFFFF0000This is only available to players that completed the associated Mage Tower Artifact Challenges and earned the base appearance.|r", "Mage Tower Appearances"},
 		-- #endif
-		[45] = {1, "|CFFFF0000Blizzard's Loot changes broke several Items and made them Unobtainable.\nHouse of Nobles Cape/Gurubashi Empire Greatcloak (both BFA Emissary Rewards), Ogom the Mangler, WoD Mission Loot & some Ulduar HM items are currently broken and need to be fixed.|r", "Broken Loot"},
+		[45] = {1, "|CFFFF0000Blizzard's Loot changes broke several Items and made them Unobtainable.\nOgom the Mangler & some Ulduar HM items are currently broken and need to be fixed.|r", "Broken Loot"},
 	};
 
 	["CUSTOM_COLLECTS_REASONS"] = {
@@ -1333,7 +1342,7 @@ L["SPELL_NAME_TO_SPELL_ID"] = {
 	["Верховая езда"] = 33388,
 	["탈것 타기"] = 33388,
 	["骑术"] = 33388,
-	
+
 	-- Herb Gathering
 	-- The skill name is "Herbalism", not "Herb Gathering"
 	["Herbalism"] = 2366,
@@ -1345,7 +1354,7 @@ L["SPELL_NAME_TO_SPELL_ID"] = {
 	["약초채집"] = 2366,
 	["草药学"] = 2366,
 	["草藥學"] = 2366,
-	
+
 	["Ganzúa"] = 1809,		-- Lock Pick	-- Required for ES (EU)
 	["Desollar"] = 8613,	-- Skinning		-- Required for ES (EU)
 	["Cнятие шкур"] = 8613,	-- Skinning		-- Required for RU

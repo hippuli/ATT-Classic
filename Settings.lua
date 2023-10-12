@@ -196,6 +196,7 @@ local TooltipSettingsBase = {
 		["Warn:Difficulty"] = true,
 		["Warn:Removed"] = true,
 		["Currencies"] = true,
+		["NPCData:Nested"] = false,
 		["QuestChain:Nested"] = true,
 		["WorldQuestsList:Currencies"] = true,
 		["ProfessionRequirements"] = true,
@@ -3346,6 +3347,18 @@ end)
 checkboxUseMoreColors:SetATTTooltip(L["MORE_COLORS_CHECKBOX_TOOLTIP"])
 checkboxUseMoreColors:AlignBelow(checkboxShowCollectedThings)
 
+local checkboxNestedNPCData = child:CreateCheckBox(L["NPC_DATA_NESTED_CHECKBOX"],
+function(self)
+	self:SetChecked(settings:GetTooltipSetting("NPCData:Nested"))
+end,
+function(self)
+	settings:SetTooltipSetting("NPCData:Nested", self:GetChecked())
+	-- requires re-building of minilist
+	app.LocationTrigger(true)
+end)
+checkboxNestedNPCData:SetATTTooltip(L["NPC_DATA_NESTED_CHECKBOX_TOOLTIP"])
+checkboxNestedNPCData:AlignBelow(checkboxUseMoreColors)
+
 local checkboxNestedQuestChains = child:CreateCheckBox(L["QUEST_CHAIN_NESTED_CHECKBOX"],
 function(self)
 	self:SetChecked(settings:GetTooltipSetting("QuestChain:Nested"))
@@ -3354,7 +3367,7 @@ function(self)
 	settings:SetTooltipSetting("QuestChain:Nested", self:GetChecked())
 end)
 checkboxNestedQuestChains:SetATTTooltip(L["QUEST_CHAIN_NESTED_CHECKBOX_TOOLTIP"])
-checkboxNestedQuestChains:AlignBelow(checkboxUseMoreColors)
+checkboxNestedQuestChains:AlignBelow(checkboxNestedNPCData)
 
 local checkboxSortByProgress = child:CreateCheckBox(L["SORT_BY_PROGRESS_CHECKBOX"],
 function(self)
@@ -3848,7 +3861,7 @@ local dropdownSoundpack = CreateFrame("Frame", "dropdownSoundpack", child, "UIDr
 dropdownSoundpack:SetPoint("TOPLEFT", textSoundpack, "BOTTOMLEFT", -15, 0)
 UIDropDownMenu_SetWidth(dropdownSoundpack, 270) -- Use in place of dropDown:SetWidth
 
--- Set the dropdown's current text to the active soundpack 
+-- Set the dropdown's current text to the active soundpack
 AllTheThings.Audio:RegisterForSoundPackEvents(function(event, soundPack)
 	UIDropDownMenu_SetText(dropdownSoundpack, AllTheThings.Audio:GetActiveSoundPack().name)
 end)

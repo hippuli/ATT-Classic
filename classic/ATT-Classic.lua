@@ -36,8 +36,8 @@ BINDING_NAME_ALLTHETHINGS_REROLL_RANDOM = L["REROLL_RANDOM"]
 -- While this may seem silly, caching references to commonly used APIs is actually a performance gain...
 local C_DateAndTime_GetServerTimeLocal
 	= C_DateAndTime.GetServerTimeLocal;
-local ipairs, pairs, rawset, rawget, pcall, tinsert, tremove
-	= ipairs, pairs, rawset, rawget, pcall, tinsert, tremove;
+local ipairs, pairs, rawset, rawget, pcall, tinsert, tremove, sformat
+	= ipairs, pairs, rawset, rawget, pcall, tinsert, tremove, string.format;
 local C_Map_GetMapInfo, C_Map_GetAreaInfo = C_Map.GetMapInfo, C_Map.GetAreaInfo;
 local C_Map_GetPlayerMapPosition = C_Map.GetPlayerMapPosition;
 local GetAchievementInfo = _G["GetAchievementInfo"];
@@ -54,6 +54,7 @@ local InCombatLockdown = _G["InCombatLockdown"];
 local GetSpellInfo, IsPlayerSpell, IsSpellKnown, IsSpellKnownOrOverridesKnown, IsTitleKnown =
 	  GetSpellInfo, IsPlayerSpell, IsSpellKnown, IsSpellKnownOrOverridesKnown, IsTitleKnown;
 local C_QuestLog_GetAllCompletedQuestIDs = C_QuestLog.GetAllCompletedQuestIDs;
+local C_QuestLog_IsQuestFlaggedCompleted = C_QuestLog.IsQuestFlaggedCompleted;
 local C_QuestLog_IsOnQuest = C_QuestLog.IsOnQuest;
 local ALLIANCE_FACTION_ID = Enum.FlightPathFaction.Alliance;
 local HORDE_FACTION_ID = Enum.FlightPathFaction.Horde;
@@ -521,7 +522,7 @@ local function HexToRGB(hex)
 	return tonumber("0x"..hex:sub(3,4)) / 255, tonumber("0x"..hex:sub(5,6)) / 255, tonumber("0x"..hex:sub(7,8)) / 255;
 end
 local function RGBToHex(r, g, b)
-	return string.format("ff%02x%02x%02x",
+	return sformat("ff%02x%02x%02x",
 		r <= 255 and r >= 0 and r or 0,
 		g <= 255 and g >= 0 and g or 0,
 		b <= 255 and b >= 0 and b or 0);
@@ -628,13 +629,21 @@ end
 local function GetAddedWithPatchString(awp, addedBack)
 	if awp then
 		awp = tonumber(awp);
-		return (addedBack and "This gets added back in patch " or "This gets added in patch ") .. math.floor(awp / 10000) .. "." .. (math.floor(awp / 100) % 10) .. "." .. (awp % 10);
+		local formatString = "ADDED";
+		if app.GameBuildVersion == awp then
+			formatString = "WAS_" .. formatString;
+		elseif app.GameBuildVersion > awp then
+			return nil;	-- Don't want to show this at the moment, let's add a configuration first!
+		end
+		if addedBack then formatString = formatString .. "_BACK"; end
+		return sformat(L[formatString .. "_WITH_PATCH_FORMAT"], 
+		math.floor(awp / 10000) .. "." .. (math.floor(awp / 100) % 10) .. "." .. (awp % 10));
 	end
 end
 local function GetRemovedWithPatchString(rwp)
 	if rwp then
 		rwp = tonumber(rwp);
-		return "This gets removed in patch " .. math.floor(rwp / 10000) .. "." .. (math.floor(rwp / 100) % 10) .. "." .. (rwp % 10);
+		return sformat(L.REMOVED_WITH_PATCH_FORMAT, math.floor(rwp / 10000) .. "." .. (math.floor(rwp / 100) % 10) .. "." .. (rwp % 10));
 	end
 end
 app.GetProgressText = GetProgressTextDefault;
@@ -700,6 +709,21 @@ local achievementTooltipText = {
 	[18601] = "DPB",	-- Defense Protocol Beta: The Culling of Stratholme
 	[18677] = "DPB",	-- Defense Protocol Beta: Trial of the Champion (A)
 	[18678] = "DPB",	-- Defense Protocol Beta: Trial of the Champion (H)
+
+	[19427] = "DPG",	-- Defense Protocol Gamma: Utgarde Keep
+	[19428] = "DPG",	-- Defense Protocol Gamma: The Nexus
+	[19429] = "DPG",	-- Defense Protocol Gamma: Azjol-Nerub
+	[19430] = "DPG",	-- Defense Protocol Gamma: Ahn'kahet: The Old Kingdom
+	[19431] = "DPG",	-- Defense Protocol Gamma: Drak'Tharon Keep
+	[19432] = "DPG",	-- Defense Protocol Gamma: The Violet Hold
+	[19433] = "DPG",	-- Defense Protocol Gamma: Gundrak
+	[19434] = "DPG",	-- Defense Protocol Gamma: Halls of Stone
+	[19435] = "DPG",	-- Defense Protocol Gamma: Halls of Lightning
+	[19436] = "DPG",	-- Defense Protocol Gamma: The Oculus
+	[19437] = "DPG",	-- Defense Protocol Gamma: Utgarde Pinnacle
+	[19438] = "DPG",	-- Defense Protocol Gamma: The Culling of Stratholme
+	[19426] = "DPG",	-- Defense Protocol Gamma: Trial of the Champion (A)
+	[19425] = "DPG",	-- Defense Protocol Gamma: Trial of the Champion (H)
 };
 local function BuildGroups(parent)
 	local g = parent.g;
@@ -1236,6 +1260,8 @@ ResolveSymbolicLink = function(o)
 				if response then tinsert(searchResults, {text=TRANSMOG_SOURCE_4,icon = app.asset("Category_WorldDrops"),g=response});  end
 				response = app:BuildSearchResponse(app.Categories.Craftables, "requireSkill", requireSkill);
 				if response then tinsert(searchResults, {text=LOOT_JOURNAL_LEGENDARIES_SOURCE_CRAFTED_ITEM,icon = app.asset("Category_Crafting"),g=response});  end
+				response = app:BuildSearchResponse(app.Categories.Holidays, "requireSkill", requireSkill);
+				if response then tinsert(searchResults, app.CreateNPC(app.HeaderConstants.HOLIDAYS, response));  end
 				response = app:BuildSearchResponse(app.Categories.WorldEvents, "requireSkill", requireSkill);
 				if response then tinsert(searchResults, {text=BATTLE_PET_SOURCE_7,icon = app.asset("Category_Event"),g=response});  end
 			elseif cmd == "fill" then
@@ -1586,7 +1612,7 @@ local function GetCachedSearchResults(search, method, paramA, paramB, ...)
 
 		-- Determine if this tooltip needs more work the next time it refreshes.
 		if not paramA then paramA = ""; end
-		local working, info, crafted, recipes = false, {}, {}, {};
+		local working, info, crafted, recipes, mostAccessibleSource = false, {}, {}, {};
 		cache = { now, 100000000 };
 		searchCache[search] = cache;
 
@@ -1766,14 +1792,17 @@ local function GetCachedSearchResults(search, method, paramA, paramB, ...)
 			if itemID then
 				-- Show the unobtainable source text
 				local u, e = 99999999;
+				app.Sort(group, app.SortDefaults.Accessibility);
 				for i,j in ipairs(group) do
 					if j.itemID == itemID then
+						mostAccessibleSource = j;
 						if j.u and u > j.u and (not j.crs or paramA == "itemID") then
 							u = j.u;
 						end
 						if j.e then
 							e = j.e;
 						end
+						break;
 					end
 				end
 				if u < 99999999 then
@@ -1968,6 +1997,12 @@ local function GetCachedSearchResults(search, method, paramA, paramB, ...)
 				group.g = merged;
 			end
 		end
+		
+		if mostAccessibleSource then
+			group.rwp = mostAccessibleSource.rwp;
+			group.e = mostAccessibleSource.e;
+			group.u = mostAccessibleSource.u;
+		end
 
 		-- Resolve Cost
 		--print("GetCachedSearchResults", paramA, paramB);
@@ -2047,14 +2082,19 @@ local function GetCachedSearchResults(search, method, paramA, paramB, ...)
 			end
 		end
 		
-		local awp, rwp = group.awp, group.rwp;
-		local addedBack = not awp or (rwp and awp > rwp);
-		if awp then
-			tinsert(info, 1, { left = GetAddedWithPatchString(awp, addedBack), wrap = true, color = app.Colors.AddedWithPatch });
+		local awp, rwp = GetRelativeValue(group, "awp"), group.rwp;
+		local awpGreaterThanRWP = true;
+		if awp and ((rwp or (group.u and group.u < 3)) or awp >= app.GameBuildVersion) then
+			awpGreaterThanRWP = rwp and awp >= rwp;
+			local awpString = GetAddedWithPatchString(awp, awpGreaterThanRWP);
+			if awpString then
+				tinsert(info, 1, { left = awpString, wrap = true, color = app.Colors.AddedWithPatch });
+			else
+				awpGreaterThanRWP = true;
+			end
 		end
-
 		if rwp then
-			tinsert(info, addedBack and 1 or 2, { left = GetRemovedWithPatchString(rwp), wrap = true, color = app.Colors.RemovedWithPatch });
+			tinsert(info, awpGreaterThanRWP and 1 or 2, { left = GetRemovedWithPatchString(rwp), wrap = true, color = app.Colors.RemovedWithPatch });
 		end
 
 		if group.isLimited then
@@ -2502,7 +2542,7 @@ local function SearchForLink(link)
 end
 local function SearchForMissingItemsRecursively(group, listing)
 	if group.visible then
-		if (group.collectible or (group.itemID and group.total and group.total > 0)) and (not group.b or group.b == 2 or group.b == 3) then
+		if group.itemID and (group.collectible or (group.total and group.total > 0)) and (not group.b or group.b == 2 or group.b == 3) then
 			tinsert(listing, group);
 		end
 		if group.g and group.expanded then
@@ -2742,7 +2782,17 @@ function app:GetDataCache()
 				isCraftedCategory = true
 			});
 		end
-
+		
+		-- Group Finder
+		if app.Categories.GroupFinder then
+			tinsert(g, {
+				text = DUNGEONS_BUTTON,
+				icon = app.asset("Category_GroupFinder"),
+				u = 33,	-- WRATH_PHASE_FOUR
+				g = app.Categories.GroupFinder,
+			});
+		end
+		
 		-- Professions
 		if app.Categories.Professions then
 			tinsert(g, {
@@ -4029,6 +4079,13 @@ if GetCategoryInfo and (GetCategoryInfo(92) ~= "" and GetCategoryInfo(92) ~= nil
 							end
 						end
 					end
+					
+					local sourceQuests = t.sourceQuests;
+					if sourceQuests then
+						for k,id in ipairs(sourceQuests) do
+							return app.GetQuestName(id);
+						end
+					end
 					return "achievementID:" .. achievementID .. ":" .. criteriaID;
 				end
 			end
@@ -4986,8 +5043,8 @@ local speciesFields = {
 		end
 	end,
 	["tsm"] = function(t)
-		if t.itemID then return string.format("i:%d", t.itemID); end
-		return string.format("p:%d:1:3", t.speciesID);
+		if t.itemID then return sformat("i:%d", t.itemID); end
+		return sformat("p:%d:1:3", t.speciesID);
 	end,
 };
 local mountFields = {
@@ -5016,8 +5073,8 @@ local mountFields = {
 		return GetSpellInfo(t.spellID) or RETRIEVING_DATA;
 	end,
 	["tsmForItem"] = function(t)
-		if t.itemID then return string.format("i:%d", t.itemID); end
-		if t.parent and t.parent.itemID then return string.format("i:%d", t.parent.itemID); end
+		if t.itemID then return sformat("i:%d", t.itemID); end
+		if t.parent and t.parent.itemID then return sformat("i:%d", t.parent.itemID); end
 	end,
 	["linkForItem"] = function(t)
 		return select(2, GetItemInfo(t.itemID)) or GetSpellLink(t.spellID);
@@ -5407,6 +5464,9 @@ local fields = {
 	["icon"] = function(t)
 		return app.asset("Category_Deaths");
 	end,
+	["hash"] = function(t)
+		return "deathtracker";
+	end,
 	["progress"] = function(t)
 		return math.min(t.total, app.Settings.AccountWide.Deaths and ATTAccountWideData.Deaths or app.CurrentCharacter.Deaths);
 	end,
@@ -5539,7 +5599,7 @@ app.DifficultyIcons = {
 };
 app.CreateDifficulty = app.CreateClass("Difficulty", "difficultyID", {
 	["text"] = function(t)
-		return t.sourceParent and string.format("%s [%s]", t.name, t.sourceParent.text or UNKNOWN) or t.name;
+		return t.sourceParent and sformat("%s [%s]", t.name, t.sourceParent.text or UNKNOWN) or t.name;
 	end,
 	["name"] = function(t)
 		return GetDifficultyInfo(t.difficultyID) or "Unknown Difficulty";
@@ -6073,7 +6133,7 @@ app.CreateGarrisonBuilding = app.CreateClass("GarrisonBuilding", "garrisonBuildi
 		return GetItemInfo(t.itemID) or t.info.name;
 	end,
 	tsm = function(t)
-		return string.format("i:%d", t.itemID);
+		return sformat("i:%d", t.itemID);
 	end,
 	f = function(t)
 		return app.FilterConstants.RECIPES;
@@ -6164,7 +6224,7 @@ local TotalRetriesPerItemID = setmetatable({}, { __index = function(t, id)
 end });
 local BestItemLinkPerItemID = setmetatable({}, { __index = function(t, id)
 	local suffixID = BestSuffixPerItemID[id];
-	local link = select(2, GetItemInfo(suffixID > 0 and string.format("item:%d:0:0:0:0:0:%d", id, suffixID) or id));
+	local link = select(2, GetItemInfo(suffixID > 0 and sformat("item:%d:0:0:0:0:0:%d", id, suffixID) or id));
 	if link then
 		rawset(t, id, link);
 		return link;
@@ -6318,7 +6378,7 @@ local itemFields = {
 		end
 	end,
 	["tsm"] = function(t)
-		return string.format("i:%d", t.itemID);
+		return sformat("i:%d", t.itemID);
 	end,
 	["GetItemCount"] = function(t)
 		return baseGetItemCount;
@@ -6621,6 +6681,14 @@ for mapID,area in pairs(mapIDToAreaID) do
 end
 app.GetCurrentMapID = function()
 	local originalMapID = C_Map_GetBestMapForUnit("player");
+	local substitutions = L.QUEST_ID_TO_MAP_ID[originalMapID];
+	if substitutions then
+		for questID,mapID in pairs(substitutions) do
+			if not C_QuestLog_IsQuestFlaggedCompleted(questID) then
+				return mapID;
+			end
+		end
+	end
 	local zoneTextSubstitution = L.MAP_ID_TO_ZONE_TEXT[originalMapID];
 	if zoneTextSubstitution then
 		local zone = GetRealZoneText();
@@ -7750,6 +7818,9 @@ setmetatable(CompletedQuests, {__newindex = function (t, key, value)
 		end
 	end
 end});
+app.GetQuestName = function(questID)
+	return QuestTitleFromID[questID];
+end
 
 local criteriaFuncs = {
     ["achID"] = function(achievementID)
@@ -8432,7 +8503,7 @@ local createRecipe = app.CreateClass("Recipe", "spellID", recipeFields,
 		return GetItemInfo(t.itemID) or nameFromSpellID(t);
 	end,
 	tsm = function(t)
-		return string.format("i:%d", t.itemID);
+		return sformat("i:%d", t.itemID);
 	end,
 	b = function(t)
 		return app.Settings.AccountWide.Recipes and 2;
@@ -9567,7 +9638,7 @@ local function AddTomTomWaypoint(group)
 end
 
 -- Minimap Button
-local function MinimapButtonOnClick(self, button)
+function AllTheThings_MinimapButtonOnClick(self, button)
 	if button == "RightButton" then
 		-- Right Button opens the Options menu.
 		app.Settings:Open();
@@ -9582,8 +9653,8 @@ local function MinimapButtonOnClick(self, button)
 		end
 	end
 end
-local function MinimapButtonOnEnter(self)
-	GameTooltip:SetOwner(self, "ANCHOR_LEFT");
+function AllTheThings_MinimapButtonOnEnter(self, button)
+	GameTooltip:SetOwner(type(self) ~= "string" and self or button, "ANCHOR_LEFT");
 	GameTooltip:ClearLines();
 
 	local reference = app:GetDataCache();
@@ -9617,7 +9688,7 @@ local function MinimapButtonOnEnter(self)
 	GameTooltip:AddLine(L["MINIMAP_MOUSEOVER_TEXT"], 1, 1, 1);
 	GameTooltip:Show();
 end
-local function MinimapButtonOnLeave()
+function AllTheThings_MinimapButtonOnLeave()
 	GameTooltip:Hide();
 	GameTooltipIcon.icon.Background:Hide();
 	GameTooltipIcon.icon.Border:Hide();
@@ -9732,9 +9803,9 @@ local function CreateMinimapButton()
 	button:SetScript("OnDragStop", function(self)
 		self:SetScript("OnUpdate", nil);
 	end);
-	button:SetScript("OnEnter", MinimapButtonOnEnter);
-	button:SetScript("OnLeave", MinimapButtonOnLeave);
-	button:SetScript("OnClick", MinimapButtonOnClick);
+	button:SetScript("OnEnter", AllTheThings_MinimapButtonOnEnter);
+	button:SetScript("OnLeave", AllTheThings_MinimapButtonOnLeave);
+	button:SetScript("OnClick", AllTheThings_MinimapButtonOnClick);
 	button:update();
 	button:Show();
 	return button;
@@ -10134,7 +10205,7 @@ local function RowOnClick(self, button)
 			end
 
 			-- If we're at the Auction House
-			if AuctionFrame and AuctionFrame:IsShown() then
+			if (AuctionFrame and AuctionFrame:IsShown()) or (AuctionHouseFrame and AuctionHouseFrame:IsShown()) then
 				local search = SearchForMissingItemNames(reference);
 				local count = #search;
 				if count < 1 then
@@ -10553,7 +10624,7 @@ local function RowOnEnter(self)
 					end
 				end
 			end
-			local awp, rwp = reference.awp, reference.rwp;
+			local awp, rwp = GetRelativeValue(reference, "awp"), reference.rwp;
 			if rwp then
 				local rwpString = GetRemovedWithPatchString(rwp);
 				if not linesByText[rwpString] then
@@ -10561,9 +10632,9 @@ local function RowOnEnter(self)
 					GameTooltip:AddLine(rwpString, r, g, b, 1);
 				end
 			end
-			if awp then
+			if awp and ((rwp or (reference.u and reference.u < 3)) or awp >= app.GameBuildVersion) then
 				local awpString = GetAddedWithPatchString(awp, awp and rwp and awp > rwp);
-				if not linesByText[awpString] then
+				if awpString and not linesByText[awpString] then
 					local r,g,b = HexToRGB(app.Colors.AddedWithPatch);
 					GameTooltip:AddLine(awpString, r, g, b, 1);
 				end
@@ -10829,7 +10900,7 @@ local function RowOnEnter(self)
 
 		if reference.g then
 			-- If we're at the Auction House
-			if AuctionFrame and AuctionFrame:IsShown() then
+			if (AuctionFrame and AuctionFrame:IsShown()) or (AuctionHouseFrame and AuctionHouseFrame:IsShown()) then
 				GameTooltip:AddLine(L[(self.index > 0 and "OTHER_ROW_INSTRUCTIONS_AH") or "TOP_ROW_INSTRUCTIONS_AH"], 1, 1, 1);
 			else
 				GameTooltip:AddLine(L[(self.index > 0 and "OTHER_ROW_INSTRUCTIONS") or "TOP_ROW_INSTRUCTIONS"], 1, 1, 1);
@@ -13824,9 +13895,9 @@ app.events.ADDON_LOADED = function(addonName)
 	LibStub:GetLibrary("LibDataBroker-1.1"):NewDataObject(L["TITLE"], {
 		type = "launcher",
 		icon = app.asset("logo_32x32"),
-		OnClick = MinimapButtonOnClick,
-		OnEnter = MinimapButtonOnEnter,
-		OnLeave = MinimapButtonOnLeave,
+		OnClick = AllTheThings_MinimapButtonOnClick,
+		OnEnter = AllTheThings_MinimapButtonOnEnter,
+		OnLeave = AllTheThings_MinimapButtonOnLeave,
 	});
 
 	-- Cache the Localized Category Data

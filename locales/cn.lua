@@ -91,12 +91,12 @@ ACC_WIDE_DEFAULT = "已追踪 ".. app.ccColors.Account .. ITEM_UPGRADE_DISCOUNT_
 	L._AND = " 和";
 	L._MORE = " 更多";
 	L._OTHER_SOURCES = " 其他来源";
-	L.DURING_WQ_ONLY = "这个可以在世界任务激活时完成。";
-	L.COMPLETED_DAILY = "这个可以每天完成。";
-	L.COMPLETED_WEEKLY = "这个可以每周完成。";
-	L.COMPLETED_MONTHLY = "这个可以每月完成。";
-	L.COMPLETED_YEARLY = "这个可以每年完成。";
-	L.COMPLETED_MULTIPLE = "这个可以重复多次。";
+	L.DURING_WQ_ONLY = "可以在世界任务激活时完成";
+	L.COMPLETED_DAILY = "可以每天完成";
+	L.COMPLETED_WEEKLY = "可以每周完成";
+	L.COMPLETED_MONTHLY = "可以每月完成";
+	L.COMPLETED_YEARLY = "可以每年完成";
+	L.COMPLETED_MULTIPLE = "可以重复多次";
 	L.CRITERIA_FOR = "准则";
 	L.CURRENCY_FOR = "货币";
 	L.LOOT_TABLE_CHANCE = "拾取列表几率";
@@ -127,7 +127,6 @@ ACC_WIDE_DEFAULT = "已追踪 ".. app.ccColors.Account .. ITEM_UPGRADE_DISCOUNT_
 	L.BOUNTY_DESC = "此列表包含 ATT Discord 报告的无法获取的物品，这些物品是暴雪尚未修复的错误。\n\n注意：在此列表中忽略所有过滤器以获得可见性。此列表中仅显示因疏忽而从游戏中移除的物品。\n\n致暴雪开发者：请修复下面列出的物品和事件。";
 	L.OPEN_AUTOMATICALLY = "自动开启";
 	L.OPEN_AUTOMATICALLY_DESC = "如果你不是暴雪开发者，最好是取消勾选此项。这样做是为了迫使暴雪修复和/或承认这些错误。";
-	L.TWO_CLOAKS = "|cffFF0000如果有的话，这两件披风的确认掉落非常有限，并且假定已损坏！ |r";
 	L.OGOM_THE_MANGLER_DESC = "|cffFF0000绞肉机奥戈姆似乎只是在你做每日突袭钢铁军工厂的时候刷新的。这个任务从军团开始后就没有激活过，可购买的任务密报：突袭钢铁军工厂也不能用了。|r";
 	L.DIFF_COMPLETED_1 = "你已经收藏了这个难度的所有物品。切换到 ";
 	L.DIFF_COMPLETED_2 = " 来代替。";
@@ -212,8 +211,8 @@ ACC_WIDE_DEFAULT = "已追踪 ".. app.ccColors.Account .. ITEM_UPGRADE_DISCOUNT_
 	L.REFRESHING_COLLECTION = "刷新收藏…";
 	L.DONE_REFRESHING = "刷新收藏完成。";
 	L.ADHOC_UNIQUE_COLLECTED_INFO = "此物品是唯一收藏但由于缺少暴雪 API 信息而未能检测到。\n\n将在下次强制刷新后修复。";
-	L.REQUIRES_PVP = "|CFF00FFDE这些需要 PvP 活动或与这些活动相关的货币。|r";
-	L.REQUIRES_PETBATTLES = "|CFF00FFDE这些需要宠物对战。|r";
+	L.REQUIRES_PVP = "|CFF00FFDE需要 PvP 活动或货币|r";
+	L.REQUIRES_PETBATTLES = "|CFF00FFDE需要宠物对战|r";
 	L.REPORT_INACCURATE_QUEST = "错误任务信息！（点击报告）";
 	L.NESTED_QUEST_REQUIREMENTS = "多重任务需要";
 	L.MAIN_LIST_REQUIRES_REFRESH = "[打开主列表更新进度 ]";
@@ -227,6 +226,8 @@ ACC_WIDE_DEFAULT = "已追踪 ".. app.ccColors.Account .. ITEM_UPGRADE_DISCOUNT_
 	L.FORCE_REFRESH_REQUIRED = "这可能需要强制刷新（"..SHIFT_KEY_TEXT.."点击）正确已收集。";
 	L.FUTURE_UNOBTAINABLE = "未来不可获取！";
 	L.FUTURE_UNOBTAINABLE_TOOLTIP = "这是已经确认或极有可能在已知的未来补丁中无法获取的内容。";
+	L.NEW_WITH_PATCH = "最新添加内容";
+	L.NEW_WITH_PATCH_TOOLTIP = "这会显示游戏最新补丁中添加的所有内容。";
 	L.TRADING_POST = "商栈";
 
 	-- Item Filter Window
@@ -366,7 +367,7 @@ ACC_WIDE_DEFAULT = "已追踪 ".. app.ccColors.Account .. ITEM_UPGRADE_DISCOUNT_
 		L.DYNAMIC_CATEGORY_SIMPLE_TOOLTIP = "仅根据最高的类别生成动态类别。 ";
 		L.DYNAMIC_CATEGORY_NESTED = "嵌套";
 		L.DYNAMIC_CATEGORY_NESTED_TOOLTIP = "根据它们的确切来源生成动态类别。这将导致在多个地方也有来源的事物重复。";
-		L.DYNAMIC_CATEGORY_TOOLTIP_NOTE = "\n\n|cffff0000需要重新加载|r";
+		L.DYNAMIC_CATEGORY_TOOLTIP_NOTE = "\n\n|cffff0000生成时应用|r";
 		L.CLICK_TO_CREATE_FORMAT = "点击创建 %s";
 		L.KEYBINDINGS_TEXT = "可以在游戏选项中设置 ATT 的按键绑定。";
 
@@ -505,6 +506,8 @@ ACC_WIDE_DEFAULT = "已追踪 ".. app.ccColors.Account .. ITEM_UPGRADE_DISCOUNT_
 		L.AUCTION_TAB_CHECKBOX_TOOLTIP = "如果你想查看 ATT 提供的拍卖行模块请启用此选项。\n\n一些插件很调皮会大量修改这个框架。ATT 并不总是和那些玩具玩得很好。";
 		L.SORT_BY_PROGRESS_CHECKBOX = "按进度排序";
 		L.SORT_BY_PROGRESS_CHECKBOX_TOOLTIP = "如果你希望'排序'操作（"..SHIFT_KEY_TEXT.."右键）按每个组的总进度排序（而不是按名称）请启用此选项";
+		L.NPC_DATA_NESTED_CHECKBOX = "显示嵌套 NPC 数据";
+		L.NPC_DATA_NESTED_CHECKBOX_TOOLTIP = "如果希望在迷你列表中显示时将所有相关数据嵌套到给定的 NPC（常见首领掉落、掉落等），请启用此选项。此选项可能会导致大量重复，但其想法是该 NPC 将在迷你列表中保持可见，就好像需要特定于该 NPC 的内容一样。\n\n默认：关闭";
 		L.QUEST_CHAIN_NESTED_CHECKBOX = "显示嵌套任务链";
 		L.QUEST_CHAIN_NESTED_CHECKBOX_TOOLTIP = "如果你想让任务链要求（右键单击任务）窗口将所需任务显示为其后续任务的子组，即它们必须从内到外完成，请启用此选项。\n\n这一点很有用，不会错过个别任务，应该主要用于完成任务的考虑。\n\n否则任务链要求将以自上而下的方式显示，最早的任务在最上面。";
 		L.CELEBRATIONS_LABEL = "庆祝和音效";
@@ -601,8 +604,11 @@ ACC_WIDE_DEFAULT = "已追踪 ".. app.ccColors.Account .. ITEM_UPGRADE_DISCOUNT_
 		L.SECRETS_HEADER = "解密";
 		L.LIMITED_QUANTITY = "此物品有数量限制，在商人处并非总是可见。";
 		L.SOURCE_ID_MISSING = "请在 #retail-errors 中向 ATT Discord 报告此物品及其获取地点！";
-		L.ADDED_WITH_PATCH_FORMAT = "这在补丁 %s 中被添加";
-		L.REMOVED_WITH_PATCH_FORMAT = "这在补丁 %s 中被删除";
+		L.ADDED_WITH_PATCH_FORMAT = "补丁 %s 中添加";
+		L.WAS_ADDED_WITH_PATCH_FORMAT = "最新补丁 %s 中添加";
+		L.ADDED_BACK_WITH_PATCH_FORMAT = "补丁 %s 中添加回归";
+		L.WAS_ADDED_BACK_WITH_PATCH_FORMAT = "最新补丁 %s 中添加回归";
+		L.REMOVED_WITH_PATCH_FORMAT = "补丁 %s 中被删除";
 
 	-- Filter Text
 		L.ACHIEVEMENT_ID = "成就 ID";
@@ -727,7 +733,6 @@ for key,value in pairs({
 			[-970] = "组 C",											-- Set C
 			[-971] = "组 D",											-- Set D
 	-- Dragonflight
-		[-1100] = DRAKE_MANUSCRIPTS,								-- Drakewatcher Manuscripts
 		[-1101] = "原始风暴",											-- Primal Storms
 		[-1102] = "拉希奥和萨贝里安",										-- Wrathion & Sabellian
 		[-1120] = "马鲁克半人马",											-- Maruuk Centaur
@@ -768,11 +773,11 @@ for key,value in pairs({
 	[4] = {3, "|CFFFF0000除非您拥有所需的 PvP 头衔、所需的 PvP 等级或处于该赛季的前 %，否则无法再购买或解锁幻化。|r", "PvP 精良/角斗士"},
 	[9] = {3, "|CFFFF0000获得它的原始来源已被删除，现在只能通过黑市拍卖行获得。|r", "黑市拍卖行 [BMAH]"},
 	[10] = {3, "|CFFFF0000最初通过不再印刷的 TCG 卡获得，但仍可通过黑市、游戏内或现实中的拍卖行获得。|r", "集换式卡牌游戏 [TCG]"},
-	[11] = {3, "|CFFFF0000除非您认识可以使用用于召唤首领的物品的人，否则这将不再可用。|r", "需要召唤物品"},
-	[15] = {1, "|CFFFF0000这不能永久学习或用于幻化。|r", "不可学"},
+	[11] = {3, "|CFFFF0000除非您认识可以使用用于召唤首领的物品的人，否则这将不再可用。\n注意：如果过去拥有大多数召唤物品，则可以通过与相应的 NPC 交谈来重新获得它们。|r", "需要召唤物品"},
+	[15] = {1, "|CFFFF0000这不能永久收集、学习或用于幻化。|r", "不可学"},
 	[35] = {3, "|CFFFF0000这被锁定在付费墙后面，例如游戏内商店、另一个暴雪产品或战友招募服务。|r", "暴雪礼品卡"},
 	[38] = {1, "|CFFFF0000这仅适用于在《熊猫人之谜》或通过黑市拍卖行完成传奇披风任务链的玩家。|r", "斡耳朵斯 - 传奇披风"},
-	[45] = {1, "|CFFFF0000暴雪的拾取更改损坏了几件物品，使其无法获得。\n贵族披风/古拉巴什帝国大氅（同为《争霸艾泽拉斯》使者奖励），“绞肉机”奥戈姆，《德拉诺之王》任务拾取和奥杜尔英雄模式物品目前已损坏，需要修复。|r", "拾取损坏"},
+	[45] = {1, "|CFFFF0000暴雪的拾取更改损坏了几件物品，使其无法获得。\n“绞肉机”奥戈姆，和奥杜尔英雄模式物品目前已损坏，需要修复。|r", "拾取损坏"},
 })
 do a[key] = value; end
 
