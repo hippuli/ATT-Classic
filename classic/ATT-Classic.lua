@@ -354,9 +354,9 @@ GameTooltipModel.SetCreatureID = function(self, creatureID)
 	end
 	self:Show();
 end
-GameTooltipModel.TrySetDisplayInfo = function(self, reference, displayInfo)
-	if displayInfo then
-		local count = #displayInfo;
+GameTooltipModel.TrySetDisplayInfos = function(self, reference, displayInfos)
+	if displayInfos then
+		local count = #displayInfos;
 		if count > 0 then
 			local rotation = reference.modelRotation and ((reference.modelRotation * math.pi) / 180) or MODELFRAME_DEFAULT_ROTATION;
 			local scale = reference.modelScale or 1;
@@ -366,7 +366,7 @@ GameTooltipModel.TrySetDisplayInfo = function(self, reference, displayInfo)
 				if count < 3 then
 					for i=1,count do
 						model = self.Models[i];
-						model:SetDisplayInfo(displayInfo[i]);
+						model:SetDisplayInfo(displayInfos[i]);
 						model:SetCamDistanceScale(scale);
 						model:SetFacing(rotation);
 						model:SetPosition(0, (i % 2 == 0 and 0.5 or -0.5), 0);
@@ -376,7 +376,7 @@ GameTooltipModel.TrySetDisplayInfo = function(self, reference, displayInfo)
 					scale = (1 + (ratio * 0.5)) * scale;
 					for i=1,count do
 						model = self.Models[i];
-						model:SetDisplayInfo(displayInfo[i]);
+						model:SetDisplayInfo(displayInfos[i]);
 						model:SetCamDistanceScale(scale);
 						model:SetFacing(rotation);
 						fi = math.floor(i / 2);
@@ -387,7 +387,7 @@ GameTooltipModel.TrySetDisplayInfo = function(self, reference, displayInfo)
 			else
 				self.Model:SetFacing(rotation);
 				self.Model:SetCamDistanceScale(scale);
-				self.Model:SetDisplayInfo(displayInfo[1]);
+				self.Model:SetDisplayInfo(displayInfos[1]);
 				self.Model:Show();
 			end
 			self:Show();
@@ -395,56 +395,76 @@ GameTooltipModel.TrySetDisplayInfo = function(self, reference, displayInfo)
 		end
 	end
 end
+-- Attempts to return the displayID for the data, or every displayID if 'all' is specified
+local function GetDisplayID(data, all)
+	-- don't create a displayID for groups with a sourceID/itemID/difficultyID/mapID
+	if data.s or data.itemID or data.difficultyID or data.mapID then return; end
+	if all then
+		local displayInfo, _ = {};
+		-- specific displayID
+		_ = data.displayID;
+		if _ then tinsert(displayInfo, _); data.displayInfo = displayInfo; return displayInfo; end
+
+		-- specific creatureID for displayID
+		_ = data.creatureID and app.NPCDisplayIDFromID[data.creatureID];
+		if _ then tinsert(displayInfo, _); data.displayInfo = displayInfo; return displayInfo; end
+
+		-- loop through "n" providers
+		if data.providers then
+			for k,v in pairs(data.providers) do
+				-- if one of the providers is an NPC, we should show its texture regardless of other providers
+				if v[1] == "n" then
+					_ = v[2] and app.NPCDisplayIDFromID[v[2]];
+					if _ then tinsert(displayInfo, _); end
+				end
+			end
+		end
+		if displayInfo[1] then data.displayInfo = displayInfo; return displayInfo; end
+
+		-- for quest givers
+		if data.qgs then
+			for k,v in pairs(data.qgs) do
+				_ = v and app.NPCDisplayIDFromID[v];
+				if _ then tinsert(displayInfo, _); end
+			end
+		end
+		if displayInfo[1] then data.displayInfo = displayInfo; return displayInfo; end
+	else
+		-- specific displayID
+		local _ = data.displayID or data.fetchedDisplayID;
+		if _ then return _; end
+
+		-- specific creatureID for displayID
+		_ = data.creatureID and app.NPCDisplayIDFromID[data.creatureID];
+		if _ then data.fetchedDisplayID = _; return _; end
+
+		-- loop through "n" providers
+		if data.providers then
+			for k,v in pairs(data.providers) do
+				-- if one of the providers is an NPC, we should show its texture regardless of other providers
+				if v[1] == "n" then
+					_ = v[2] and app.NPCDisplayIDFromID[v[2]];
+					if _ then data.fetchedDisplayID = _; return _; end
+				end
+			end
+		end
+
+		-- for quest givers
+		if data.qgs then
+			for k,v in pairs(data.qgs) do
+				_ = v and app.NPCDisplayIDFromID[v];
+				if _ then data.fetchedDisplayID = _; return _; end
+			end
+		end
+	end
+end
 GameTooltipModel.TrySetModel = function(self, reference)
 	GameTooltipModel.HideAllModels(self);
 	if app.Settings:GetTooltipSetting("Models") then
 		self.lastModel = reference;
-		local displayInfo = reference.displayInfo;
-		if displayInfo then
-			if GameTooltipModel.TrySetDisplayInfo(self, reference, displayInfo) then
-				return true;
-			end
-		end
-		if reference.qgs then
-			if #reference.qgs > 1 then
-				local displayInfo = {};
-				local markedKeys = {};
-				for i,creatureID in ipairs(reference.qgs) do
-					local displayID = app.NPCDisplayIDFromID[creatureID];
-					if displayID and not markedKeys[displayID] then
-						tinsert(displayInfo, displayID);
-						markedKeys[displayID] = 1;
-					end
-				end
-				if GameTooltipModel.TrySetDisplayInfo(self, reference, displayInfo) then
-					return true;
-				end
-			else
-				local displayID = app.NPCDisplayIDFromID[reference.qgs[1]];
-				if displayID then
-					self.Model:SetFacing(reference.modelRotation and ((reference.modelRotation * math.pi) / 180) or MODELFRAME_DEFAULT_ROTATION);
-					self.Model:SetCamDistanceScale(reference.modelScale or 1);
-					self.Model:SetDisplayInfo(displayID);
-					self.Model:Show();
-					self:Show();
-					return true;
-				end
-			end
-		elseif reference.providers then
-			local displayInfo = {}
-			local markedKeys = {}
-			for k,v in pairs(reference.providers) do
-				if v[1] == "n" and v[2] > 0 then
-					local displayID = app.NPCDisplayIDFromID[v[2]];
-					if displayID and not markedKeys[displayID] then
-						tinsert(displayInfo, displayID);
-						markedKeys[displayID] = 1;
-					end
-				end
-			end
-			if GameTooltipModel.TrySetDisplayInfo(self, reference, displayInfo) then
-				return true;
-			end
+		local displayInfos = reference.displayInfo or GetDisplayID(reference, true);
+		if GameTooltipModel.TrySetDisplayInfos(self, reference, displayInfos) then
+			return true;
 		end
 
 		if reference.displayID then
@@ -468,11 +488,12 @@ GameTooltipModel.TrySetModel = function(self, reference)
 			self.Model:Show();
 			self:Show();
 		end
-		if reference.model then
+		local modelID = reference.model and tonumber(reference.model);
+		if modelID and modelID > 0 then
 			self.Model:SetFacing(reference.modelRotation and ((reference.modelRotation * math.pi) / 180) or MODELFRAME_DEFAULT_ROTATION);
 			self.Model:SetCamDistanceScale(reference.modelScale or 1);
 			self.Model:SetUnit("none");
-			self.Model:SetModel(reference.model);
+			self.Model:SetModel(modelID);
 			self.Model:Show();
 			self:Show();
 			return true;
@@ -2539,6 +2560,7 @@ local function SearchForLink(link)
 		end
 		return cache, kind, id;
 	end
+	return {}, "", 0;
 end
 local function SearchForMissingItemsRecursively(group, listing)
 	if group.visible then
@@ -3526,6 +3548,42 @@ else
 	WorldMapTooltip:HookScript("OnTooltipSetQuest", AttachTooltip);
 	WorldMapTooltip:HookScript("OnTooltipCleared", ClearTooltip);
 	WorldMapTooltip:HookScript("OnShow", AttachTooltip);
+	
+	tinsert(app.EventHandlers.OnReady, function()
+		local GameTooltip_SetLFGDungeonReward = GameTooltip.SetLFGDungeonReward;
+		if GameTooltip_SetLFGDungeonReward then
+			GameTooltip.SetLFGDungeonReward = function(self, dungeonID, rewardIndex)
+				GameTooltip_SetLFGDungeonReward(self, dungeonID, rewardIndex);
+				local name, texturePath, quantity, isBonusReward, spec, itemID = GetLFGDungeonRewardInfo(dungeonID, rewardIndex);
+				if itemID then
+					if spec == "item" then
+						AttachTooltipSearchResults(self, 1, "itemID:" .. itemID, SearchForField, "itemID", itemID);
+						self:Show();
+					elseif spec == "currency" then
+						AttachTooltipSearchResults(self, 1, "currencyID:" .. itemID, SearchForField, "currencyID", itemID);
+						self:Show();
+					end
+				end
+			end
+		end
+		
+		local GameTooltip_SetLFGDungeonShortageReward = GameTooltip.SetLFGDungeonShortageReward;
+		if GameTooltip_SetLFGDungeonShortageReward then
+			GameTooltip.SetLFGDungeonShortageReward = function(self, dungeonID, shortageSeverity, lootIndex)
+				GameTooltip_SetLFGDungeonShortageReward(self, dungeonID, shortageSeverity, lootIndex);
+				local name, texturePath, quantity, isBonusReward, spec, itemID = GetLFGDungeonShortageRewardInfo(dungeonID, shortageSeverity, lootIndex);
+				if itemID then
+					if spec == "item" then
+						AttachTooltipSearchResults(self, 1, "itemID:" .. itemID, SearchForField, "itemID", itemID);
+						self:Show();
+					elseif spec == "currency" then
+						AttachTooltipSearchResults(self, 1, "currencyID:" .. itemID, SearchForField, "currencyID", itemID);
+						self:Show();
+					end
+				end
+			end
+		end
+	end);
 end
 if app.GameBuildVersion > 11403 then
 	app:RegisterEvent("CURSOR_CHANGED");
@@ -6450,11 +6508,281 @@ app.CreateItem = app.CreateClass("Item", "itemID", itemFields,
 	end,
 }, (function(t) return t.factionID; end));
 
--- No difference between an item and an heirloom in classic, yet.
-app.CreateHeirloom = function(id, t)
-	t = app.CreateItem(id, t);
-	--t.b = 2;
-	return t;
+-- Heirloom Lib
+if C_Heirloom then
+	-- Heirloom API is available. Awesome!
+	local C_Heirloom_GetHeirloomInfo = C_Heirloom.GetHeirloomInfo;
+	local C_Heirloom_GetHeirloomLink = C_Heirloom.GetHeirloomLink;
+	local C_Heirloom_PlayerHasHeirloom = C_Heirloom.PlayerHasHeirloom;
+	local C_Heirloom_GetHeirloomMaxUpgradeLevel = C_Heirloom.GetHeirloomMaxUpgradeLevel;
+	local heirloomIDs = {};
+	local CreateHeirloomUnlock = app.CreateClass("HeirloomUnlock", "heirloomUnlockID", {
+		name = function(t)
+			return L["HEIRLOOM_TEXT"];
+		end,
+		icon = function(t)
+			return app.asset("Weapon_Type_Heirloom");
+		end,
+		description = function(t)
+			return L["HEIRLOOM_TEXT_DESC"];
+		end,
+		collectible = function(t)
+			return app.Settings.Collectibles.Heirlooms;
+		end,
+		collected = function(t)
+			return C_Heirloom_PlayerHasHeirloom(t.heirloomUnlockID);
+		end,
+	});
+	
+	-- Clone base item fields and extend the properties.
+	local heirloomFields = {
+		icon = function(t)
+			return select(4, C_Heirloom_GetHeirloomInfo(t.itemID)) or select(5, GetItemInfoInstant(t.itemID));
+		end,
+		link = function(t)
+			return C_Heirloom_GetHeirloomLink(t.itemID) or select(2, GetItemInfo(t.itemID));
+		end,
+	};
+
+	-- Are heirloom upgrades available? (6.1.0.19445)
+	local gameBuildVersion = app.GameBuildVersion;
+	if gameBuildVersion > 60100 then
+		-- Extend the heirloom lib to account for upgrade levels.
+		local armorTextures = {
+			"Interface/ICONS/INV_Icon_HeirloomToken_Armor01",
+			"Interface/ICONS/INV_Icon_HeirloomToken_Armor02",
+			"Interface/ICONS/Inv_leather_draenordungeon_c_01shoulder",
+			"Interface/ICONS/inv_mail_draenorquest90_b_01shoulder",
+			"Interface/ICONS/inv_leather_warfrontsalliance_c_01_shoulder",
+			"Interface/ICONS/inv_shoulder_armor_dragonspawn_c_02",
+		};
+		local weaponTextures = {
+			"Interface/ICONS/INV_Icon_HeirloomToken_Weapon01",
+			"Interface/ICONS/INV_Icon_HeirloomToken_Weapon02",
+			"Interface/ICONS/inv_weapon_shortblade_112",
+			"Interface/ICONS/inv_weapon_shortblade_111",
+			"Interface/ICONS/inv_weapon_shortblade_102",
+			"Interface/ICONS/inv_weapon_shortblade_84",
+		};
+
+		local weaponFilterIDs = { 20, 29, 28, 21, 22, 23, 24, 25, 26, 50, 57, 34, 35, 27, 33, 32, 31 };
+		local hierloomLevelFields = {
+			["key"] = function(t)
+				return "heirloomLevelID";
+			end,
+			["level"] = function(t)
+				return 1;
+			end,
+			["name"] = function(t)
+				t.name = sformat(HEIRLOOM_UPGRADE_TOOLTIP_FORMAT, t.level, t.levelMax);
+				return t.name;
+			end,
+			["icon"] = function(t)
+				return t.isWeapon and weaponTextures[t.level] or armorTextures[t.level];
+			end,
+			["description"] = function(t)
+				return L["HEIRLOOMS_UPGRADES_DESC"];
+			end,
+			["collectible"] = function(t)
+				return app.Settings.Collectibles.Heirlooms and app.Settings.Collectibles.HeirloomUpgrades;
+			end,
+			["collected"] = function(t)
+				local itemID = t.heirloomLevelID;
+				if itemID then
+					if t.level <= (ATTAccountWideData.HeirloomRanks[itemID] or 0) then return true; end
+					local level = select(5, C_Heirloom_GetHeirloomInfo(itemID));
+					if level then
+						ATTAccountWideData.HeirloomRanks[itemID] = level;
+						if t.level <= level then return true; end
+					end
+				end
+			end,
+			["trackable"] = app.ReturnTrue,
+			["isWeapon"] = function(t)
+				local isWeapon = t.f and contains(weaponFilterIDs, t.f);
+				t.isWeapon = isWeapon;
+				return isWeapon;
+			end,
+		};
+		local CreateHeirloomLevel = app.CreateClass("HeirloomLevel", "heirloomLevelID", hierloomLevelFields);
+		heirloomFields.isWeapon = hierloomLevelFields.isWeapon;
+		heirloomFields.saved = function(t)
+			return t.collected == 1;
+		end
+
+		-- Will retrieve all the cached entries by itemID for existing heirlooms and generate their
+		-- upgrade levels into the respective upgrade tokens
+		app.CacheHeirlooms = function()
+			-- app.PrintDebug("CacheHeirlooms",#heirloomIDs)
+			if #heirloomIDs < 1 then return; end
+			
+			-- Setup upgrade tokens that contain levels for the heirlooms. Order matters.
+			-- Ranks 1 & 2 were added with WOD (6.1.0.19445)
+			local armorTokenItemIDs = {
+				122338,	-- Rank 1: Ancient Heirloom Armor Casing
+				122340,	-- Rank 2: Timeworn Heirloom Armor Casing
+			};
+			local weaponTokenItemIDs = {
+				122339,	-- Rank 1: Ancient Heirloom Scabbard
+				122341,	-- Rank 2: Timeworn Heirloom Scabbard
+			};
+
+			-- Rank 3 was added with Legion (7.2.5.24076)
+			if gameBuildVersion > 70205 then
+				tinsert(armorTokenItemIDs, 151614);		-- Weathered Heirloom Armor Casing
+				tinsert(weaponTokenItemIDs, 151615);		-- Weathered Heirloom Scabbard
+
+				-- Rank 4 was added with BFA (8.1.5.29701)
+				if gameBuildVersion > 80105 then
+					tinsert(armorTokenItemIDs, 167731);		-- Battle-Hardened Heirloom Armor Casing
+					tinsert(weaponTokenItemIDs, 167732);		-- Battle-Hardened Heirloom Scabbard
+
+					-- Rank 5 was added with Shadowlands (9.1.5.40871)
+					if gameBuildVersion > 90105 then
+						tinsert(armorTokenItemIDs, 187997);		-- Eternal Heirloom Armor Casing
+						tinsert(weaponTokenItemIDs, 187998);		-- Eternal Heirloom Scabbard
+
+						-- Rank 6 was added with Dragonflight (10.1.0.49407)
+						if gameBuildVersion > 100100 then
+							tinsert(armorTokenItemIDs, 204336);		-- Awakened Heirloom Armor Casing
+							tinsert(weaponTokenItemIDs, 204337);		-- Awakened Heirloom Scabbard
+						end
+					end
+				end
+			end
+
+			-- Build headers that will contain each type.
+			local armorTokens, weaponTokens = {}, {};
+			for i=#armorTokenItemIDs,1,-1 do
+				tinsert(armorTokens, app.CreateItem(armorTokenItemIDs[i], {
+					collectible = false,
+					g = {},
+				}));
+				tinsert(weaponTokens, app.CreateItem(weaponTokenItemIDs[i], {
+					collectible = false,
+					g = {},
+				}));
+			end
+
+
+			-- for each cached heirloom, push a copy of itself with respective upgrade level under the respective upgrade token
+			local Search = app.SearchForObject;
+			local uniques, heirloom, upgrades = {};
+			for _,itemID in ipairs(heirloomIDs) do
+				if not uniques[itemID] then
+					uniques[itemID] = true;
+					heirloom = Search("itemID", itemID, "field");
+					if heirloom then
+						upgrades = C_Heirloom_GetHeirloomMaxUpgradeLevel(itemID);
+						if upgrades and upgrades > 0 then
+							local meta = { __index = heirloom };
+							local tokenType = heirloom.isWeapon and weaponTokens or armorTokens;
+							for i=1,upgrades,1 do
+								-- Create a non-collectible version of the heirloom item itself to hold the upgrade within the token
+								tinsert(tokenType[upgrades + 1 - i].g,
+								setmetatable({ collectible = false, g = {
+									CreateHeirloomLevel({
+										heirloomLevelID = itemID,
+										levelMax = upgrades,
+										level = i,
+										f = heirloom.f,
+										e = heirloom.e,
+										u = heirloom.u,
+									})
+								}}, meta));
+							end
+						end
+					end
+				end
+			end
+
+			-- build groups for each upgrade token
+			-- and copy the set of upgrades into the cached versions of the upgrade tokens so they therefore exist in the main list
+			-- where the sources of the upgrade tokens exist
+			for i,item in ipairs(armorTokens) do
+				for _,token in ipairs(SearchForField("itemID", item.itemID)) do
+					-- ensure the tokens do not have a modID attached
+					token.modID = nil;
+					token.modItemID = nil;
+					if not token.sym then
+						for _,heirloom in ipairs(item.g) do
+							NestObject(token, heirloom, true);
+						end
+						BuildGroups(token);
+					end
+				end
+			end
+			for i,item in ipairs(weaponTokens) do
+				for _,token in ipairs(SearchForField("itemID", item.itemID)) do
+					-- ensure the tokens do not have a modID attached
+					token.modID = nil;
+					token.modItemID = nil;
+					if not token.sym then
+						for _,heirloom in ipairs(item.g) do
+							NestObject(token, heirloom, true);
+						end
+						BuildGroups(token);
+					end
+				end
+			end
+
+			wipe(heirloomIDs);
+		end
+	end
+	
+	local CreateHeirloom = app.ExtendClass("Item", "Heirloom", "itemID", heirloomFields,
+	"AsRWP", {
+		collectible = function(t)
+			return t.collectibleAsCost or app.Settings.Collectibles.RWP;
+		end,
+		collected = function(t)
+			if t.collectedAsCost == false then
+				return;
+			end
+			return collectedAsRWP(t);
+		end,
+		description = function()
+			return "This item also has an RWP sourceID with it, keep at least one somewhere on your account. I'm not sure if Blizzard is planning on deprecating this completely before transmog comes out or not!\n\n  - Crieve";
+		end,
+	}, isCollectibleRWP,
+	"WithFaction", {
+		collectible = function(t)
+			return t.collectibleAsCost or app.Settings.Collectibles.Reputations;
+		end,
+		collected = function(t)
+			if t.collectedAsCost == false then
+				return 0;
+			end
+			if t.repeatable then
+				return (app.CurrentCharacter.Factions[t.factionID] and 1)
+					or (ATTAccountWideData.Factions[t.factionID] and 2);
+			else
+				-- This is used for the Grand Commendations unlocking Bonus Reputation
+				if ATTAccountWideData.FactionBonus[t.factionID] then return 1; end
+				if select(15, GetFactionInfoByID(t.factionID)) then
+					ATTAccountWideData.FactionBonus[t.factionID] = 1;
+					return 1;
+				end
+			end
+			-- This is used by reputation tokens. (turn in items)
+			if app.CurrentCharacter.Factions[t.factionID] then return 1; end
+			if app.Settings.AccountWide.Reputations and ATTAccountWideData.Factions[t.factionID] then return 2; end
+		end,
+	}, (function(t) return t.factionID; end));
+	app.CreateHeirloom = function(id, t)
+		t = CreateHeirloom(id, t);
+		--t.b = 2;	-- Heirlooms are always BoA
+		
+		-- unlocking the heirloom is the only thing contained in the heirloom
+		t.g = { CreateHeirloomUnlock(id, { e = t.e, u = t.u }); }
+		tinsert(heirloomIDs, id);
+		return t;
+	end
+else
+	-- No difference between an item and an heirloom in classic, yet.
+	app.CreateHeirloom = function(id, t)
+		return app.CreateItem(id, t);
+	end
 end
 
 local fields = CloneDictionary(itemFields);
@@ -6469,8 +6797,9 @@ fields.itemID = function(t)
 end
 if C_ToyBox then
 	-- Toy API is in!
+	local C_ToyBox_GetToyInfo = C_ToyBox.GetToyInfo;
 	local function isBNETCollectible(toyID)
-		if C_ToyBox.GetToyInfo(toyID) then
+		if C_ToyBox_GetToyInfo(toyID) then
 			return true;
 		end
 	end
@@ -6492,13 +6821,15 @@ if C_ToyBox then
 		return isBNETCollectible(t.toyID);
 	end
 	
-	app:RegisterEvent("TOYS_UPDATED");
 	app.events.TOYS_UPDATED = function(toyID, new)
 		if toyID then
 			app.SetAccountCollected(app.SearchForField("toyID", toyID)[1] or app.CreateToy(toyID), "Toys", toyID, PlayerHasToy(toyID));
 			app:RefreshDataQuietly("TOYS_UPDATED", true);
 		end
 	end
+	tinsert(app.EventHandlers.OnReady, function()
+		app:RegisterEvent("TOYS_UPDATED");
+	end);
 end
 app.CreateToy = app.CreateClass("Toy", "toyID", fields);
 
@@ -14297,6 +14628,11 @@ app.events.VARIABLES_LOADED = function()
 
 		-- Now that all the windows are loaded, cache flight paths!
 		app.CacheFlightPathData();
+	
+		-- Execute the OnReady handlers.
+		for i,handler in ipairs(app.EventHandlers.OnReady) do
+			handler();
+		end
 
 		-- Mark that we're ready now!
 		app.IsReady = true;

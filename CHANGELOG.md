@@ -1,64 +1,70 @@
 # AllTheThings
 
-## [DF-3.6.7](https://github.com/DFortun81/AllTheThings/tree/DF-3.6.7) (2023-10-08)
-[Full Changelog](https://github.com/DFortun81/AllTheThings/compare/DF-3.6.6...DF-3.6.7) [Previous Releases](https://github.com/DFortun81/AllTheThings/releases)
+## [DF-3.6.8](https://github.com/DFortun81/AllTheThings/tree/DF-3.6.8) (2023-10-12)
+[Full Changelog](https://github.com/DFortun81/AllTheThings/compare/DF-3.6.7...DF-3.6.8) [Previous Releases](https://github.com/DFortun81/AllTheThings/releases)
 
-- even if she is on the pill, you should use protection  
-    (parsing for release even tho it was already parsed)  
-- Trading Post Drape Harvest SourceID  
-- Added evoker party-sync gear.  
-- Added PvP Elite catalyst gear.  
-- removed some pvp note as we can use IF statements  
-- saddle update pvp  
-- Drakebreakers Arsenal and Ensembles added  
-- -- Sorting Unsorted and Epaulettes-Gate...  
-- Moved Winding Slitherdrake: Finned Cheek into NYI.  
-- More CriteriaUIDs  
-- Many Many More CriteriaUID updates  
-- Update Achievements.lua  
-    CriteriaUID updates  
-- Draenor CriteriaUIDs  
-- More Panadaland and BrokenIsle CriteriaUIDs  
-- CriteriaUID's Pandaria  
-- CriteriaUID Updates  
-- Fixed SymRaid  
-- Some mounts  
-- -- Tier Sets added  
-- High Commander Halford Wyrmbane is a breadcrumb quest, if you finish the quest chain in dragonblight, it becomes unavailable.  
-- Added last engineering ensemble questID.  
-- CriteriaUID's  
-- Added last Loose Dirt Mound for SoA.  
-- Added Emerald Bounty into Emerald Dream  
-- Added EK cup providers.  
-- Smolderon, Tindral Sageswift, Seer of the Flame and Fyrakk the Blazing  
-- Larodar, Keeper of the Flame and Nymue, Weaver of the Cycle  
-- Volcoross and Council of Dreams  
-- Gnarlroot and Igira added to the frey  
-- Season Dreaming  
-- Additional maps for 10.2  
-- Emerald Dream added to map  
-- Moved Files  
-- Replace TREE\_1 to Emerald Dream  
-- Create Missing Files  
-- Harvest: 10.2.0.51601  
-- Harvest: 10.2.0.51521  
-- Harvest: 10.1.7.51536  
-- Harvest: 3.4.3.51572  
-- Harvest: 3.4.3.51505  
-- Harvest: 1.14.4.51535  
-- Limit how many crumbs you actually need because not everyone is as crazy as me to go pick them all up :)  
-- EK Cup crumbs  
-- Reagent icon updated to match blizz minimap tracking icon  
-- Update Quests.lua  
-- Update Quests.lua  
-    Inaccurate sourcequest - Reported on discord  
-- Update The Jade Forest.lua  
-    Horde NPC  
-- Added one more firstskin.  
-- added unlockable wyrmhole locations  
-- move skinning back to first craft, but with collectible=false tag  
-- PTR: more sorting  
-- TW HQT Trigger & Missing item source  
-- No longer filling all potential Garrison Raid Mission reward boxes in Garrison minilist  
-- Removed empty lines and some comments  
-- Added 'skipFill' which will not fill linked content for a Thing unless it is the root of a tooltip/popout (i.e. Class Hall Raid loot boxes)  
+- Wrath Classic: Added GameTooltip.SetLFGDungeonReward integration.  
+- SearchForLink now returns blank data.  
+- Removed LFGBulletinBoard.  
+- Fixed Criteria not inheriting their Achievement's Pet Battle or PvP filter requirements  
+    Improved how Criteria are linked to their parent Achievement  
+- Cleaned up the Quel'Dalar quest chain and added objectives (for wrath classic).  
+- Added an OnReady event handler. (This particular fix addresses the toy spam at the start caused by the API not being ready for Wrath Classic.)  
+- Make sure no one puts data in the empty table, just in case  
+- cn update. (#1507)  
+- Slightly adjusted the Quel'Dalar quest chain. (incomplete)  
+- Legion TW Dailly  
+    Same loot as a MOP satchel.  
+- Fixed a CriteriaID typo  
+- Added proper categories to Timewalking tiers  
+    For some reason Dalaran wouldn't parse...  
+- Someone missed an #endif lul  
+- Synced seasonal tooltip to other locales  
+- Classic: C\_ToyBox cache variable.  
+- Simplified Primordial Saronite and Precious' Ribbon in ICC.  
+- Updated the format of ICC Vendors.  
+    Moved tier sets 7-10 to a structures document.  
+- Reins of the Crimson Deathcharger is now explicitly marked BoE.  
+- Tiny inconsistency with 'Toggle' type  
+- Classic: Various updates for the latest patch.  
+- added note to seasonal events filter that events will be shown 7 days in advance  
+- Some more sorting  
+- removed tag that 2023 blizzcon stuff is unobtainable  
+- -- Sorted some Unsorted  
+- Wrath Classic: Timear Foresees and Proof of Demise quests and associated achievements are now Unobtainable with Phase 4.  
+- Wrath Classic: Minor settings menu updates.  
+- Blizzcon 2023, Unsorted Sorting  
+- fixed solo shuffle note  
+- -- From Retail/Classic Errors  
+- Coordinates for achievement "Over Their Heads"  
+- Uncollectibles/Unsourced  
+- Legion TW Satchel  
+    Checking discord for loot drops, likely MoP container.  
+- Wrath Classic: Added a better Heirloom Lib.  
+- Wrath Classic: The Cache of the Ley-Guardian only drops using RDF.  
+- Retail: Simplified 'meta\_achievement' symlink  
+- Classic: Now using the same model setter as retail.  
+- Classic: TrySetDisplayInfos instead of the non-plural form.  
+- Renamed various Legion+ files to better organize within Continents (Categories -> Sub-Zones)  
+- Remainder of Exploration Achievements re-organized  
+- Organized remaining Exploration > Pandaria achievements  
+- lower city fix  
+- proper name  
+- updated some loca text file  
+- The mini list for Blackfathom Deeps now works in Wrath Classic again.  
+- Updated The Orb of Soran'ruk.  
+- Wrath Classic: Don Carlos' Famous Hat is now a Toy as of the ICC patch.  
+- Added the objectID for Imprisoned Doomguard.  
+- Update Terokkar Forest.lua  
+    Wrong NPC ID  
+- missing hastag  
+- Suppression sourceQuests can be completed together and are not chained one after another.  
+    Rebuilt categories for classic.  
+- Some criteriaUIDs  
+- Use constant for eventID  
+- general vendor+general rewards for dragonriding stuff  
+- Create Cooking Impossible.lua  
+    Map issue resolved. No rewards from this zone.  
+- CriteriaUID  
+- Converetd remaining raw 'objectID' use into 'provider' (basically never a good situation to directly use 'objectID')  
+- Fixed a lot of commented or weird objectID use into providers [WIP]  

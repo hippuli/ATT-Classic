@@ -3,9 +3,9 @@
 ## Name: AllTheThings
 ## Notes: Addon for Tracking Collections & Account Completion
 ## Author: Crieve-Sargeras
-## Version: DF-3.6.7
-## Interface: 30402
-## X-Interface: 30402
+## Version: DF-3.6.8
+## Interface: 30403
+## X-Interface: 30403
 ## X-Wago-ID: yQKyY5K7
 ## X-Curse-Project-ID: 267285
 ## SavedVariables: ATTCharacterData, ATTAccountWideData, AllTheThingsSavedVariables, AllTheThingsAD, ATTClassicSettings, ATTClassicAD, ATTClassicAuctionData, ATTClassicDebugData

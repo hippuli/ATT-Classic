@@ -5,7 +5,7 @@
 --------------------------------------------------------------------------------
 -- This is a hidden frame that intercepts all of the event notifications that we have registered for.
 local appName, app = ...;
-app.EmptyTable = {};
+app.EmptyTable = setmetatable({}, { __newindex = function() end });
 
 -- Generate the version identifier.
 app.Version = GetAddOnMetadata(appName, "Version");
@@ -115,7 +115,8 @@ app.GetRelativeValue = GetRelativeValue;
 
 -- Declare Event Handlers
 app.EventHandlers = {
-	OnRecalculate = {}
+	OnRecalculate = {},
+	OnReady = {},
 };
 
 -- Cache information about the player.
