@@ -583,6 +583,7 @@ app.RefreshTradeSkillCache = function()
 	cache[2811] = 1;	-- Stygia Crafting
 	cache[2819] = 1;	-- Protoform Synthesis
 	cache[2847] = 1;	-- Tuskarr Fishing Gear
+	cache[2886] = 1;	-- Supply Shipments
 	-- app.PrintDebug("RefreshTradeSkillCache");
 	local prof1, prof2, archaeology, fishing, cooking, firstAid = GetProfessions();
 	for i,j in ipairs({prof1 or 0, prof2 or 0, archaeology or 0, fishing or 0, cooking or 0, firstAid or 0}) do
@@ -3044,7 +3045,7 @@ local ResolveFunctions = {
 						app.print("'achievement_criteria' Quest type missing Quest Source group!",achievementID,assetID)
 					end
 				-- Items
-				elseif criteriaType == 36 or criteriaType == 42 then
+				elseif criteriaType == 36 or criteriaType == 41 or criteriaType == 42 then
 					criteriaObject.providers = {{ "i", assetID }};
 				elseif criteriaType == 110	-- Casting spells on specific target
 					or criteriaType == 29 or criteriaType == 69	-- Buff Gained
@@ -4874,7 +4875,7 @@ local function DetermineCraftedGroups(group, FillData)
 	-- check if the item is BoP and needs skill filtering for current character, or debug mode
 	-- TODO: further review... this causes population of a list to be different based on settings, such that
 	-- changing settings after 'filling' does not properly adjust the list
-	local filterSkill = not app.MODE_DEBUG and (app.IsBoP(group) or select(14, GetItemInfo(itemID)) == 1);
+	local filterSkill = not app.MODE_DEBUG_OR_ACCOUNT and (app.IsBoP(group) or select(14, GetItemInfo(itemID)) == 1);
 	local craftableItemIDs = {}
 	-- track crafted items which are filled across the entire fill sequence
 	local craftedItems = FillData.CraftedItems
@@ -6712,13 +6713,13 @@ app.CreateCache = function(idField)
 			end
 			return _t, id;
 		end
+		app.PrintDebug("CACHE_MISS",idField,t.__type,t.hash)
+		app.PrintTable(t)
 	end;
 	cache.GetCachedField = function(t, field, default_function)
 		--[[ -- Debug Prints
 		local _t, id = cache.GetCached(t);
-		if _t[field] then
-			print("GetCachedField",id,field,_t[field]);
-		end
+		app.PrintDebug("GetCachedField",t.hash,id,field,_t[field]);
 		--]]
 		_t = cache.GetCached(t);
 		if _t then
@@ -6744,12 +6745,7 @@ app.CreateCache = function(idField)
 		end
 		--]]
 		_t = cache.GetCached(t);
-		if _t then _t[field] = value;
-		else
-			print("Failed to get cache table using",idField)
-			print(t.__type,field,value)
-			app.PrintTable(t)
-		end
+		if _t then _t[field] = value; end
 	end;
 	return cache;
 end
@@ -10319,7 +10315,7 @@ local function RawSetItemInfoFromLink(t, link)
 		local _t, id = cache.GetCached(t);
 		print("rawset item info",id,link,name,quality,b)
 		--]]
-		-- app.PrintDebug("RawSetLink",link)
+		-- app.PrintDebug("RawSetLink:=",link)
 		t = cache.GetCached(t);
 		t.retries = nil;
 		t.name = name;
@@ -10334,14 +10330,16 @@ local function RawSetItemInfoFromLink(t, link)
 		end
 		return link;
 	else
+		-- app.PrintDebug("RawSetLink:?",link)
 		HandleItemRetries(t);
 	end
 end
 local function default_link(t)
+	local itemLink = t.rawlink
 	-- item already has a pre-determined itemLink so use that
-	if t.rawlink then return RawSetItemInfoFromLink(t, t.rawlink); end
+	if itemLink then return RawSetItemInfoFromLink(t, itemLink); end
 	-- need to 'create' a valid accurate link for this item
-	local itemLink = t.itemID;
+	itemLink = t.itemID;
 	if itemLink then
 		local modID, bonusID;
 		-- sometimes the raw itemID is actually a modItemID, so try splitting that here as a final adjustment
@@ -10365,7 +10363,7 @@ local function default_link(t)
 			-- bonusID 3524 seems to imply "use ModID to determine SourceID" since without it, everything with ModID resolves as the base SourceID from links
 			itemLink = sformat("item:%d:::::::::::%d:1:3524:", itemLink, modID);
 		else
-			itemLink = sformat("item:%d:::::::::::::", itemLink);
+			itemLink = sformat("item:%d", itemLink);
 		end
 		-- save this link so it doesn't need to be built again
 		t.rawlink = itemLink;
@@ -10463,8 +10461,9 @@ local itemFields = {
 		end
 	end,
 	["modItemID"] = function(t)
+		-- if app.IsReady then app.PrintDebug("item.modItemID?",t.key,t[t.key]) end
 		local modItemID = GetGroupItemIDWithModID(t) or t.itemID;
-		-- app.PrintDebug("item.modItemID",modItemID,t.key,t[t.key])
+		-- if app.IsReady then app.PrintDebug("item.modItemID=",modItemID) end
 		t.modItemID = modItemID;
 		return modItemID;
 	end,
@@ -10550,7 +10549,6 @@ local itemFields = {
 	end,
 };
 -- Module imports
-itemFields.hasUpgrade = app.Modules.Upgrade.HasUpgrade;
 itemFields.nextUpgrade = app.Modules.Upgrade.NextUpgrade;
 itemFields.collectibleAsUpgrade = app.Modules.Upgrade.CollectibleAsUpgrade;
 app.BaseItem = app.BaseObjectFields(itemFields, "BaseItem");
@@ -10644,19 +10642,22 @@ local fields = RawCloneData(itemFields, {
 		t.__autolink = true;
 		-- app.FunctionRunner.Run(app.GenerateGroupLinkUsingSourceID, t);
 		app.GenerateGroupLinkUsingSourceID(t);
+		-- if a value was set within this logic, return it here. weird logic sequencing was previously able to generate the itemID while
+		-- caching the modItemID, leading to a 0 itemID return, and caching the item information into a 0-itemID cache record
+		return rawget(t, "itemID")
 	end,
 });
-app.BaseItemSource = app.BaseObjectFields(fields, "BaseItemSource");
+local BaseItemSource = app.BaseObjectFields(fields, "BaseItemSource");
 
 app.CreateItemSource = function(sourceID, itemID, t)
-	t = setmetatable(constructor(sourceID, t, "s"), app.BaseItemSource);
+	t = setmetatable(constructor(sourceID, t, "s"), BaseItemSource);
 	t.itemID = itemID;
 	return t;
 end
 app.CreateItem = function(id, t)
 	if t then
 		if t.s then
-			return setmetatable(constructor(id, t, "itemID"), app.BaseItemSource);
+			return setmetatable(constructor(id, t, "itemID"), BaseItemSource);
 		elseif t.factionID then
 			if t.questID then
 				return setmetatable(constructor(id, t, "itemID"), app.BaseItemWithQuestIDAndFactionID);
@@ -11370,7 +11371,7 @@ app.ImportRawLink = function(group, rawlink, ignoreSource)
 		group._up = nil;
 		local _, linkItemID, enchantId, gemId1, gemId2, gemId3, gemId4, suffixId, uniqueId, linkLevel, specializationID, upgradeId, modID, bonusCount, bonusID1 = strsplit(":", rawlink);
 		if linkItemID then
-			-- app.PrintDebug("ImportRawLink",rawlink,linkItemID,modID,bonusCount,bonusID1);
+			-- app.PrintDebug("IRL+",rawlink,linkItemID,modID,bonusCount,bonusID1);
 			-- set raw fields in the group based on the link
 			group.itemID = tonumber(linkItemID);
 			group.modID = modID and tonumber(modID) or nil;
@@ -11386,10 +11387,11 @@ app.ImportRawLink = function(group, rawlink, ignoreSource)
 			if not ignoreSource then
 				-- does this link also have a sourceID?
 				local s = GetSourceID(rawlink);
-				-- app.PrintDebug("IRL:GS",rawlink,s)
+				-- app.PrintDebug("IRL:s",rawlink,s)
 				if s then group.s = s; end
 				-- if app.Debugging then app.PrintTable(group) end
 			end
+			-- app.PrintDebug("IRL=",rawlink,group.itemID,group.modID,group.bonusID,"=>",group.modItemID);
 		end
 	end
 end
@@ -11400,9 +11402,9 @@ app.GenerateGroupLinkUsingSourceID = function(group)
 
 	local link = app.DetermineItemLink(s);
 	if not link then return; end
+	-- app.PrintDebug("GGLUS",s,link)
 
 	app.ImportRawLink(group, link, true);
-	-- app.PrintDebug("GGLUS",link,s)
 
 	local sourceGroup = app.SearchForObject("s", s, "key");
 	if not sourceGroup then
@@ -11413,8 +11415,8 @@ end
 app.SaveHarvestSource = function(data)
 	local s, itemID = data.s, data.modItemID;
 	if s and itemID then
+		-- app.PrintDebug("Harvest:s",itemID,"=>",s)
 		AllTheThingsHarvestItems[itemID] = s;
-		return;
 	end
 end
 -- Returns the depth at which a given Item matches the provided modItemID
@@ -12601,6 +12603,7 @@ local SkillIcons = setmetatable({
 	[2811] = 2578727,	-- Stygia Crafting
 	[2819] = 3747898,	-- Protoform Synthesis
 	[2847] = 4638460,	-- Tuskarr Fishing Gear
+	[2886] = 1394946,	-- Supply Shipments
 }, { __index = function(t, key)
 	if not key then return; end
 	local skillSpellID = app.SkillIDToSpellID[key];
@@ -12998,7 +13001,7 @@ local DefaultGroupVisibility, DefaultThingVisibility;
 local UpdateGroups;
 local RecursiveGroupRequirementsFilter, GroupFilter, GroupVisibilityFilter, ThingVisibilityFilter, TrackableFilter
 local FilterSet, FilterGet, Filters_ItemUnbound, ItemUnboundSetting
-local debug
+-- local debug
 -- Local caches for some heavily used functions within updates
 local function CacheFilterFunctions()
 	local FilterApi = app.Modules.Filter;
@@ -13046,7 +13049,7 @@ local function SetGroupVisibility(parent, group)
 		if parent and visible then
 			parent.hasUpgradeNested = true;
 		end
-		-- app.PrintDebug("SGV.hasUpgrade",group.hash,visible,group.hasUpgradeNested)
+		-- if debug then print("SGV.hasUpgrade",group.hash,visible,group.hasUpgradeNested) end
 	end
 	-- Trackable
 	if not visible and TrackableFilter(group) then
@@ -14591,6 +14594,52 @@ local function HasExpandedSubgroup(group)
 		end
 	end
 end
+-- probably temporary function to fix Retail Lua errors when using AH
+app.TrySearchAHForGroup = function(group)
+	-- nothing works. AH frame is weird
+
+	-- local itemID = group.itemID
+	-- if itemID then
+	local name, link = group.name, group.link or group.silentLink
+	if name and HandleModifiedItemClick(link) then
+		local AH = app.AH
+		if not AH then AH = {} app.AH = AH end
+		-- AuctionFrameBrowse_Search();	-- doesn't exist
+		-- local itemKey = C_AuctionHouse.MakeItemKey(itemID)
+		-- local itemKeys = {itemKey}
+		local query = AH.query
+		if not query then
+			local sorts = {
+				-- {sortOrder = Enum.AuctionHouseSortOrder.Name, reverseSort = false},
+				{sortOrder = Enum.AuctionHouseSortOrder.Price, reverseSort = false},
+				-- {sortOrder = Enum.AuctionHouseSortOrder.Buyout, reverseSort = false},
+			}
+			local filters = {
+				-- Enum.AuctionHouseFilter.None
+			}
+			-- local itemClassFilters = {
+			-- 	classID = LE_ITEM_CLASS_CONTAINER,
+			-- 	subClassID = nil,
+			-- 	inventoryType = nil
+			-- }
+			query = {
+				sorts = sorts,
+				filters = filters,
+				-- itemClassFilters = itemClassFilters,
+			}
+			-- cache the query for future use to only change the search
+			AH.query = query
+		end
+		query.searchString = name
+		-- app.PrintDebug("search")
+		-- app.PrintTable(query)
+		-- local result = C_AuctionHouse.GetItemSearchResultInfo(itemKey, 0) -- always nil
+		-- app.PrintTable(result)
+		-- C_AuctionHouse.SearchForItemKeys(itemKeys,sorts) -- always Lua error
+		C_AuctionHouse.SendBrowseQuery(query)
+		return true;
+	end
+end
 local RowOnEnter, RowOnLeave;
 local function RowOnClick(self, button)
 	local reference = self.ref;
@@ -14700,11 +14749,8 @@ local function RowOnClick(self, button)
 							app.print(L["AH_SEARCH_NO_ITEMS_FOUND"]);
 						else
 							-- Attempt to search manually with the link.
-							local link = reference.link or reference.silentLink;
-							if link and HandleModifiedItemClick(link) then
-								AuctionFrameBrowse_Search();
-								return true;
-							end
+							local searched = app.TrySearchAHForGroup(reference)
+							if searched then return true end
 						end
 						return true;
 					else
@@ -14713,11 +14759,8 @@ local function RowOnClick(self, button)
 							return true;
 						else
 							-- Attempt to search manually with the link.
-							local link = reference.link or reference.silentLink;
-							if link and HandleModifiedItemClick(link) then
-								AuctionFrameBrowse_Search();
-								return true;
-							end
+							local searched = app.TrySearchAHForGroup(reference)
+							if searched then return true end
 						end
 					end
 				elseif TSMAPI_FOUR and false then
@@ -14758,11 +14801,8 @@ local function RowOnClick(self, button)
 						app.print(L["AH_SEARCH_NO_ITEMS_FOUND"]);
 					else
 						-- Attempt to search manually with the link.
-						local link = reference.link or reference.silentLink;
-						if link and HandleModifiedItemClick(link) then
-							AuctionFrameBrowse_Search();
-							return true;
-						end
+						local searched = app.TrySearchAHForGroup(reference)
+						if searched then return true end
 					end
 					return true;
 				else
@@ -17035,6 +17075,7 @@ local BaseFilterHeaderClone = app.BaseObjectFields({
 	["hasUpgradeNested"] = app.EmptyFunction,
 	["costNested"] = app.EmptyFunction,
 	["g"] = app.EmptyFunction,
+	["visible"] = app.EmptyFunction,
 	-- ["back"] = function(t)
 	-- 	return 0.3;	-- visibility of which rows are cloned
 	-- end,
@@ -21956,7 +21997,7 @@ app.InitDataCoroutine = function()
 
 	-- now that the addon is ready, make sure the minilist is updated to the current location if necessary
 	DelayedCallback(app.LocationTrigger, 3);
-	
+
 	-- Execute the OnReady handlers.
 	for i,handler in ipairs(app.EventHandlers.OnReady) do
 		handler();

@@ -3,7 +3,7 @@
 ## Name: AllTheThings
 ## Notes: Addon for Tracking Collections & Account Completion
 ## Author: Crieve-Sargeras
-## Version: DF-3.6.8
+## Version: DF-3.6.9
 ## Interface: 30403
 ## X-Interface: 30403
 ## X-Wago-ID: yQKyY5K7
@@ -44,6 +44,7 @@ src\UI\Breadcrumbs.lua
 src\UI\Dailies.lua
 src\UI\Factions.lua
 src\UI\Flight Paths.lua
+src\UI\Heirlooms.lua
 src\UI\Hidden Achievement Triggers.lua
 src\UI\Hidden Quest Triggers.lua
 src\UI\Illusions.lua
