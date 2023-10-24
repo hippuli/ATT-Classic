@@ -8,7 +8,7 @@ local C_Map_GetAreaInfo = C_Map.GetAreaInfo;
 
 -- App locals
 local contains, classIndex, raceIndex, factionID =
-	app.contains, app.ClassIndex, app.RaceIndex, app.FactionID;
+	app.contains, app.ClassIndex, app.RaceIndex, app.FactionID
 
 -- Module locals
 local AllCaches, AllGamePatches, runners, QuestTriggers = {}, {}, {}, {}
@@ -16,7 +16,7 @@ local containerMeta = {
 	__index = function(t, id)
 		if id then
 			local container = {};
-			rawset(t, id, container);
+			t[id] = container;
 			return container;
 		else
 			error("Attempting to get a nil cache container!");
@@ -27,7 +27,7 @@ local fieldMeta = {
 	__index = function(t, field)
 		if field then
 			local container = setmetatable({}, containerMeta);
-			rawset(t, field, container);
+			t[field] = container;
 			return container;
 		else
 			error("Attempting to get a nil field on cache " .. t.name);
@@ -47,7 +47,8 @@ local currentCache, CacheFields;
 
 -- Cache a given group into the current cache for the provided field and value
 local function CacheField(group, field, value)
-	tinsert(currentCache[field][value], group);
+	local c = currentCache[field][value]
+	c[#c + 1] = group
 end
 
 -- Returns: An object which can be used for holding cached data by various keys allowing for quick updates of data states.
@@ -55,7 +56,8 @@ local CreateDataCache = function(name, skipMapCaching)
 	local cache = { name = name };
 	AllCaches[name] = cache;
 	cache.CacheField = function(group, field, value)
-		tinsert(cache[field][value], group);
+		local c = cache[field][value]
+		c[#c + 1] = group
 	end
 	cache.CacheFields = function(groups)
 		local oldCache = currentCache;
@@ -548,7 +550,7 @@ local function _CacheFields(group)
 		end
 	end
 	if hasG then
-		for i,subgroup in ipairs(group.g) do
+		for _,subgroup in ipairs(group.g) do
 			_CacheFields(subgroup);
 		end
 	end
@@ -579,6 +581,7 @@ end
 -- Performance Tracking for Caching
 if app.__perf then
 	app.__perf.CaptureTable(fieldConverters, "CacheFields");
+	CacheFields = app.__perf.CaptureFunction(CacheFields, "CacheFields", "CacheFields")
 end
 
 -- Returns: A table containing all subgroups which contain a given value of field relative to the group or nil.

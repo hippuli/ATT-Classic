@@ -5,6 +5,12 @@
 --------------------------------------------------------------------------------
 -- App locals
 local appName, app = ...;
+
+-- Performance Tracking for AllTheThings Functions
+if app.__perf then
+	app.__perf.AutoCaptureTable(app, appName);
+end
+
 local L = app.L;
 local GetRelativeValue = app.GetRelativeValue;
 
@@ -935,17 +941,27 @@ end
 local function GetCompletionText(state)
 	return L[(state == 2 and "COMPLETE_OTHER") or (state and "COMPLETE") or "INCOMPLETE"];
 end
+local function GetSavedText(state)
+	return L[state and "SAVED" or "INCOMPLETE"];
+end
 local function GetCollectibleIcon(data, iconOnly)
 	if data.collectible then
 		return iconOnly and GetCollectionIcon(data.collected) or GetCollectionText(data.collected);
 	end
 end
-local function GetTrackableIcon(data, iconOnly)
+local function GetTrackableIcon(data, iconOnly, forSaved)
 	if data.trackable then
 		local saved = data.saved;
 		-- only show if the data is saved, or is not repeatable
 		if saved or not rawget(data, "repeatable") then
-			return iconOnly and GetCompletionIcon(saved) or GetCompletionText(saved);
+			if forSaved then
+				-- if for saved, we ignore if it is un-saved for less clutter
+				if saved then
+					return iconOnly and GetCompletionIcon(saved) or GetSavedText(saved);
+				end
+			else
+				return iconOnly and GetCompletionIcon(saved) or GetCompletionText(saved);
+			end
 		end
 	end
 end
@@ -969,7 +985,7 @@ local function GetUpgradeIconForRow(data, iconOnly)
 end
 local function GetUpgradeIconForTooltip(data, iconOnly)
 	-- upgrade only if itself has an upgrade
-	if data.filledUpgrade or data.collectibleAsUpgrade then
+	if data.collectibleAsUpgrade then
 		return iconOnly and L["UPGRADE_ICON"] or L["UPGRADE_TEXT"];
 	end
 end
@@ -1055,6 +1071,13 @@ local function GetProgressTextForTooltip(data, iconOnly)
 	local stateIcon = GetCollectibleIcon(data, iconOnly)
 	if stateIcon then
 		tinsert(text, stateIcon)
+	end
+	-- Saved (only certain data types)
+	if data.npcID then
+		stateIcon = GetTrackableIcon(data, iconOnly, true)
+		if stateIcon then
+			tinsert(text, stateIcon)
+		end
 	end
 	-- Container
 	local total = data.total;
@@ -1532,43 +1555,53 @@ local inventorySlotsMap = {	-- Taken directly from CanIMogIt (Thanks!)
 -- Source ID Harvesting Lib
 local DressUpModel = CreateFrame('DressUpModel');
 GetSourceID = function(itemLink)
-	if itemLink and C_Item_IsDressableItemByID(itemLink) then
-		-- Updated function courtesy of CanIMogIt, Thanks AmiYuy and Team! :D
+	if not itemLink or not C_Item_IsDressableItemByID(itemLink) then return nil, false end
+
+	-- Updated function courtesy of CanIMogIt, Thanks AmiYuy and Team! :D
+	-- (requires loaded ItemInfo to work for modified appearances)
+	if GetItemInfo(itemLink) then
 		local sourceID = select(2, C_TransmogCollection_GetItemInfo(itemLink));
 		-- app.PrintDebug("TMOGSourceID",sourceID,itemLink)
 		if sourceID then return sourceID, true; end
+	end
 
-		-- app.PrintDebug("Failed to directly retrieve SourceID",itemLink)
-		local itemID, _, _, slotName = GetItemInfoInstant(itemLink);
-		if slotName then
-			local slots = inventorySlotsMap[slotName];
-			if slots then
-				DressUpModel:SetUnit("player");
-				DressUpModel:Undress();
-				for _,slot in pairs(slots) do
-					DressUpModel:TryOn(itemLink, slot);
-					local tmogInfo = DressUpModel:GetItemTransmogInfo(slot);
-					-- app.PrintDebug("SlotInfo",slot)
-					-- app.PrintTable(tmogInfo)
-					local sourceID = tmogInfo and tmogInfo.appearanceID;
-					if sourceID and sourceID ~= 0 then
-						-- Added 5/4/2018 - Account for DressUpModel lag... sigh
-						-- Adjusted to account for non-transmoggable SourceIDs which are collectible
-						local sourceInfo = C_TransmogCollection_GetSourceInfo(sourceID);
-						if sourceInfo then
-							if sourceInfo.itemID == itemID then
-								-- app.PrintDebug("DressUpModelSourceID",itemLink,sourceID,sourceInfo.itemID,sourceInfo.name)
-								return sourceID, true;
-							end
+	-- app.PrintDebug("Failed to directly retrieve SourceID",itemLink)
+	local itemID, _, _, slotName = GetItemInfoInstant(itemLink);
+	if slotName then
+		local slots = inventorySlotsMap[slotName];
+		if slots then
+			DressUpModel:SetUnit("player");
+			DressUpModel:Undress();
+			for _,slot in pairs(slots) do
+				DressUpModel:TryOn(itemLink, slot);
+				local tmogInfo = DressUpModel:GetItemTransmogInfo(slot);
+				-- app.PrintDebug("SlotInfo",slot)
+				-- app.PrintTable(tmogInfo)
+				local sourceID = tmogInfo and tmogInfo.appearanceID;
+				if sourceID and sourceID ~= 0 then
+					-- Added 5/4/2018 - Account for DressUpModel lag... sigh
+					-- Adjusted to account for non-transmoggable SourceIDs which are collectible
+					local sourceInfo = C_TransmogCollection_GetSourceInfo(sourceID);
+					if sourceInfo then
+						if sourceInfo.itemID == itemID then
+							-- app.PrintDebug("DressUpModelSourceID",itemLink,sourceID,sourceInfo.itemID,sourceInfo.name)
+							return sourceID, true;
 						end
 					end
 				end
 			end
 		end
-		return nil, true;
 	end
-	return nil, false;
+	return nil, true;
 end
+-- Returns sourceID which is actually accurate for the provided itemLink
+-- (C_TransmogCollection.GetItemInfo requires item data to be available in the Client to be confirmed that it is accurate. Thanks Blizzard)
+local function GetSourceIDConfirmed(itemLink)
+	if not GetItemInfo(itemLink) then return end
+	return GetSourceID(itemLink)
+end
+app.GetSourceID = GetSourceID;
+app.GetSourceIDConfirmed = GetSourceIDConfirmed;
 end
 -- Attempts to determine an ItemLink which will return the provided SourceID
 app.DetermineItemLink = function(sourceID)
@@ -1619,7 +1652,6 @@ app.IsComplete = function(o)
 	if o.trackable then return o.saved; end
 	return true;
 end
-app.GetSourceID = GetSourceID;
 app.MaximumItemInfoRetries = 40;
 local function GetUnobtainableTexture(group)
 	if not group then return; end
@@ -4828,7 +4860,10 @@ end
 local function DetermineUpgradeGroups(group, FillData)
 	local nextUpgrade = group.nextUpgrade;
 	if nextUpgrade then
-		group.filledUpgrade = not nextUpgrade.collected;
+		if not nextUpgrade.collected then
+			group.filledUpgrade = true;
+		end
+		-- app.PrintDebug("filledUpgrade=",nextUpgrade.modItemID,nextUpgrade.collected,"<",group.modItemID)
 		local o = CreateObject(nextUpgrade);
 		return { o };
 	end
@@ -15802,12 +15837,12 @@ RowOnEnter = function (self)
 		end
 
 		--[[ ROW DEBUGGING ]
-		GameTooltip:AddDoubleLine("Self",tostring(reference));
-		GameTooltip:AddDoubleLine("Base",tostring(getmetatable(reference)));
-		GameTooltip:AddDoubleLine("Parent",tostring(rawget(reference, "parent")));
-		GameTooltip:AddDoubleLine("ParentText",tostring((rawget(reference, "parent") or app.EmptyTable).text));
-		GameTooltip:AddDoubleLine("SourceParent",tostring(rawget(reference, "sourceParent")));
-		GameTooltip:AddDoubleLine("SourceParentText",tostring((rawget(reference, "sourceParent") or app.EmptyTable).text));
+		-- GameTooltip:AddDoubleLine("Self",tostring(reference));
+		-- GameTooltip:AddDoubleLine("Base",tostring(getmetatable(reference)));
+		-- GameTooltip:AddDoubleLine("Parent",tostring(rawget(reference, "parent")));
+		-- GameTooltip:AddDoubleLine("ParentText",tostring((rawget(reference, "parent") or app.EmptyTable).text));
+		-- GameTooltip:AddDoubleLine("SourceParent",tostring(rawget(reference, "sourceParent")));
+		-- GameTooltip:AddDoubleLine("SourceParentText",tostring((rawget(reference, "sourceParent") or app.EmptyTable).text));
 		GameTooltip:AddLine("-- Ref Fields:");
 		for key,val in pairs(reference) do
 			if key ~= "lore" and key ~= "description" then
@@ -15815,11 +15850,12 @@ RowOnEnter = function (self)
 			end
 		end
 		local fields = {
-			"__type",
-			"key",
-			"hash",
-			"name",
-			"link",
+			"collectibleAsUpgrade",
+			-- "__type",
+			-- "key",
+			-- "hash",
+			-- "name",
+			-- "link",
 			-- "sourceIgnored",
 			-- "collectible",
 			-- "collected",
@@ -15828,8 +15864,8 @@ RowOnEnter = function (self)
 			-- "collectibleAsCost",
 			-- "costTotal",
 			-- "costProgress",
-			"itemID",
-			"modItemID"
+			-- "itemID",
+			-- "modItemID"
 		};
 		GameTooltip:AddLine("-- Extra Fields:");
 		for _,key in ipairs(fields) do
@@ -19550,7 +19586,7 @@ customWindowUpdates["list"] = function(self, force, got)
 			if not link then return; end
 			-- If it doesn't, the source ID will need to be harvested.
 			local s, success = GetSourceID(link);
-			-- app.PrintDebug("SourceIDs",data.modItemID,source,s,success)
+			-- app.PrintDebug("SourceIDs",link,data.modItemID,source,s,success)
 			data._VerifyGroupSourceID = true;
 			if s and s > 0 then
 				-- only save the source if it is different than what we already have, or being forced
@@ -20660,13 +20696,14 @@ end)();
 -- ATT Debugger Logic
 app.LoadDebugger = function()
 	-- CLEU binding only happens when debugger is enabled because of how expensive it can get in large mob farms
-	app:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
-	app.events.COMBAT_LOG_EVENT_UNFILTERED = function()
-		local _,event = CombatLogGetCurrentEventInfo();
-		if event == "UNIT_DIED" or event == "UNIT_DESTROYED" then
-			app.RefreshQuestInfo();
-		end
-	end
+	-- Really don't think this is necessary for the debugger at this point in time, quest updates are pretty solid without tracking every combat log event
+	-- app:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
+	-- app.events.COMBAT_LOG_EVENT_UNFILTERED = function()
+	-- 	local _,event = CombatLogGetCurrentEventInfo();
+	-- 	if event == "UNIT_DIED" or event == "UNIT_DESTROYED" then
+	-- 		app.RefreshQuestInfo();
+	-- 	end
+	-- end
 	-- This event is helpful for world objects used as treasures. Won't help with objects without rewards (e.g. cat statues in Nazjatar)
 	app:RegisterEvent("LOOT_OPENED")
 	app.events.LOOT_OPENED = function()
@@ -20685,21 +20722,33 @@ app.LoadDebugger = function()
 			self.initialized = true;
 			force = true;
 			local CleanFields = {
-				["parent"] = 1,
-				["sourceParent"] = 1,
-				["total"] = 1,
-				["text"] = 1,
-				["forceShow"] = 1,
-				["progress"] = 1,
-				["OnUpdate"] = 1,
-				["expanded"] = 1,
-				["hash"] = 1,
-				["rawlink"] = 1,
-				["modItemID"] = 1,
-				["f"] = 1,
-				["key"] = 1,
-				["visible"] = 1,
-				["displayInfo"] = 1,
+				parent = 1,
+				sourceParent = 1,
+				total = 1,
+				text = 1,
+				forceShow = 1,
+				progress = 1,
+				OnUpdate = 1,
+				expanded = 1,
+				hash = 1,
+				rawlink = 1,
+				modItemID = 1,
+				f = 1,
+				key = 1,
+				visible = 1,
+				displayInfo = 1,
+				fetchedDisplayID = 1,
+				nmr = 1,
+				nmc = 1,
+				TLUG = 1,
+				locked = 1,
+				collectibleAsCost = 1,
+				costNested = 1,
+				icon = 1,
+				_OnUpdate = 1,
+				_SettingsRefresh = 1,
+				_CheckCollectible = 1,
+				_coord = 1,
 			};
 			local function CleanObject(obj)
 				local clean = {};
@@ -20814,6 +20863,25 @@ app.LoadDebugger = function()
 				['g'] = {},
 			});
 
+			local function CategorizeObject(info)
+				if info.isVendor then
+					return app.CreateNPC(app.HeaderConstants.VENDORS, { g = { info }})
+				elseif info.questID then
+					if info.isWorldQuest then
+						return app.CreateNPC(app.HeaderConstants.WORLD_QUESTS, { g = { info }})
+					else
+						return app.CreateNPC(app.HeaderConstants.QUESTS, { g = { info }})
+					end
+				elseif info.npcID then
+					return app.CreateNPC(app.HeaderConstants.ZONE_DROPS, { g = { info }})
+				elseif info.objectID then
+					return app.CreateNPC(app.HeaderConstants.TREASURES, { g = { info }})
+				elseif info.unit then
+					return app.CreateNPC(app.HeaderConstants.DROPS, { g = { info }})
+				end
+				return info
+			end
+
 			local AddObject = function(info)
 				-- print("Debugger.AddObject")
 				-- app.PrintTable(info)
@@ -20828,6 +20896,7 @@ app.LoadDebugger = function()
 							local px, py = pos:GetXY();
 							info.coord = { math.ceil(px * 10000) / 100, math.ceil(py * 10000) / 100, mapID };
 						end
+						info = CategorizeObject(info)
 					end
 					repeat
 						mapInfo = C_Map_GetMapInfo(mapID);
@@ -20865,7 +20934,7 @@ app.LoadDebugger = function()
 						if IgnoredNPCs[npc_id] then return true; end
 
 						local numItems = GetMerchantNumItems();
-						if app.Debugging then print("MERCHANT DETAILS", ty, npc_id, numItems); end
+						app.PrintDebug("MERCHANT DETAILS", ty, npc_id, numItems);
 
 						local rawGroups = {};
 						for i=1,numItems,1 do
@@ -20914,7 +20983,7 @@ app.LoadDebugger = function()
 
 			-- Setup Event Handlers and register for events
 			self:SetScript("OnEvent", function(self, e, ...)
-				if app.Debugging then print(e, ...); end
+				app.PrintDebug(e, ...);
 				if e == "ZONE_CHANGED_NEW_AREA" or e == "NEW_WMO_CHUNK" then
 					AddObject();
 				elseif e == "MERCHANT_SHOW" or e == "MERCHANT_UPDATE" then
@@ -21004,7 +21073,7 @@ app.LoadDebugger = function()
 					-- trigger the delayed backup
 					DelayedCallback(self.BackupData, 15, self);
 				-- Capture quest NPC dialogs
-				elseif e == "QUEST_DETAIL" or e == "QUEST_PROGRESS" then
+				elseif e == "QUEST_DETAIL" or e == "QUEST_PROGRESS" or e == "QUEST_COMPLETE" then
 					local questStartItemID = ...;
 					local questID = GetQuestID();
 					if questID == 0 then return false; end
@@ -21016,7 +21085,7 @@ app.LoadDebugger = function()
 					end
 					local type, zero, server_id, instance_id, zone_uid, npc_id, spawn_uid;
 					if guid then type, zero, server_id, instance_id, zone_uid, npc_id, spawn_uid = strsplit("-",guid); end
-					if app.Debugging then print("QUEST_DETAIL", questStartItemID, " => Quest #", questID, type, npc_id, app.NPCNameFromID[npc_id]); end
+					app.PrintDebug(e, questStartItemID, " => Quest #", questID, type, npc_id, app.NPCNameFromID[npc_id]);
 
 					local rawGroups = {};
 					for i=1,GetNumQuestRewards(),1 do
@@ -21042,20 +21111,27 @@ app.LoadDebugger = function()
 					-- end
 
 					local info = { ["questID"] = questID, ["g"] = rawGroups };
-					if questStartItemID and questStartItemID > 0 then info.provider = { "i", questStartItemID }; end
+					local providers = {}
+					if questStartItemID and questStartItemID > 0 then tinsert(providers, { "i", questStartItemID }); end
 					if npc_id then
 						npc_id = tonumber(npc_id);
-						if type == "GameObject" then
-							info = { ["objectID"] = npc_id, ["text"] = UnitName(npc), ["g"] = { info } };
-						else
-							info.qgs = { npc_id };
-						end
+						tinsert(providers, { type == "GameObject" and "o" or "n", npc_id })
 						local faction = UnitFactionGroup(npc);
 						if faction then
 							info.r = faction == "Horde" and Enum.FlightPathFaction.Horde or Enum.FlightPathFaction.Alliance;
 						end
 					end
+					if #providers > 0 then
+						info.providers = providers
+					end
 					AddObject(info);
+				-- Capture accepted quests which skip NPC dialog windows (addons, auto-accepted)
+				elseif e == "QUEST_ACCEPTED" then
+					local questID = ...
+					if questID then
+						local info = { ["questID"] = questID };
+						AddObject(info);
+					end
 				-- Capture various personal/party loot received
 				elseif e == "CHAT_MSG_LOOT" then
 					local msg, player, a, b, c, d, e, f, g, h, i, j, k, l = ...;
@@ -21092,22 +21168,30 @@ app.LoadDebugger = function()
 								for s=1,#source,2 do
 									type, zero, server_id, instance_id, zone_uid, id, spawn_uid = strsplit("-",source[s]);
 									-- TODO: test this with Item containers
-									if app.Debugging then print("Add Loot",itemID,"from",type,id) end
+									app.PrintDebug("Add Loot",itemID,"from",type,id)
 									info = { [(type == "GameObject") and "objectID" or "npcID"] = tonumber(id), ["g"] = { { ["itemID"] = itemID, ["rawlink"] = loot } } };
 									-- print("Add Loot")
 									-- app.PrintTable(info);
 									AddObject(info);
 								end
-							elseif app.Debugging then
-								print("No ItemID!",loot)
+							else
+								app.PrintDebug("No ItemID!",loot)
 							end
 						end
 					end
+				elseif e == "QUEST_LOOT_RECEIVED" then
+					local questID, itemLink = ...
+					local itemID = GetItemInfoInstant(itemLink)
+					local info = { ["questID"] = questID, ["g"] = { { ["itemID"] = itemID, ["rawlink"] = itemLink } } }
+					app.PrintDebug("Add Quest Loot from",questID,itemLink,itemID)
+					AddObject(info)
 				end
 			end);
+			self:RegisterEvent("QUEST_ACCEPTED");
 			self:RegisterEvent("QUEST_DETAIL");
 			self:RegisterEvent("QUEST_PROGRESS");
 			self:RegisterEvent("QUEST_LOOT_RECEIVED");
+			self:RegisterEvent("QUEST_COMPLETE");
 			self:RegisterEvent("TRADE_SKILL_LIST_UPDATE");
 			self:RegisterEvent("ZONE_CHANGED_NEW_AREA");
 			self:RegisterEvent("NEW_WMO_CHUNK");
@@ -22813,8 +22897,3 @@ end	-- Vignette Functionality Scope
 app.DoModuleEvent("OnLoad")
 
 -- app.PrintMemoryUsage("AllTheThings.EOF");
-
--- Performance Tracking for AllTheThings Functions
-if app.__perf then
-	app.__perf.CaptureTable(app, appName);
-end
