@@ -1253,7 +1253,7 @@ app.SourceSpecificFields = {
 				app.print("Invalid Unobtainable Filter:",u);
 				return;
 			end
-			-- track the highest unobtainable value, which is the most obtainable (according to UNOBTAINABLE_ITEM_TEXTURES)
+			-- track the highest unobtainable value, which is the most obtainable (according to UNOBTAINABLE_ITEM_REASONS)
 			if check > max then
 				new = u;
 				max = check;
@@ -1375,7 +1375,7 @@ local function CreateObject(t, rootOnly)
 	elseif t[1] then
 		local s = {};
 		-- array
-		-- if app.Debugging then print("CreateObject on array",#t); end
+		-- app.PrintDebug("CreateObject on array",#t);
 		for i,o in ipairs(t) do
 			s[i] = CreateObject(o, rootOnly);
 		end
@@ -1484,7 +1484,7 @@ local function CreateObject(t, rootOnly)
 	if rootOnly then
 		t.g = nil;
 	else
-		-- if app.Debugging then print("CreateObject key/value",t.key,t[t.key]); end
+		-- app.PrintDebug("CreateObject key/value",t.key,t[t.key]);
 		-- if g, then replace each object in all sub groups with an object version of the table
 		local g = t.g;
 		if g then
@@ -1618,7 +1618,8 @@ app.DetermineItemLink = function(sourceID)
 	link = itemFormat;
 	-- if quality is Artifact / Unmodified Item / Category 'Paired' just return the basic Item string
 	if sourceInfo.quality == 6 or sourceInfo.itemModID == 0 or sourceInfo.categoryID == 29 then
-		-- app.PrintDebug("DetermineItemLink:Good",sourceID,"(Basic Item Data)");
+		-- app.PrintDebug("DetermineItemLink:Good",link,sourceID,"(Basic Item Data)");
+		-- app.PrintTable(sourceInfo)
 		return link;
 	end
 	local checkID, found = GetSourceID(link);
@@ -1665,7 +1666,9 @@ local function GetUnobtainableTexture(group)
 	-- TODO: Use 4 for inactive events, use 5 for active events
 	local filter, u = 4, group.u;
 	if u then
-		if (group.itemID or group.spellID) and u > 1 and u < 1000 and not app.IsBoP(group) then
+		-- only b = 0 (BoE), not BoA/BoP
+		-- removed, elite, bmah, tcg, summon
+		if u > 1 and u < 12 and (group.b or 0) == 0 then
 			filter = 2;
 		else
 			local record = L["UNOBTAINABLE_ITEM_REASONS"][u];
@@ -1677,8 +1680,11 @@ local function GetUnobtainableTexture(group)
 				return;
 			end
 		end
+		return L["UNOBTAINABLE_ITEM_TEXTURES"][filter];
 	end
-	return L["UNOBTAINABLE_ITEM_TEXTURES"][filter];
+	if group.e then
+		return L["UNOBTAINABLE_ITEM_TEXTURES"][app.Modules.Events.FilterIsEventActive(group) and 5 or 4];
+	end
 end
 -- Returns an applicable Indicator Icon Texture for the specific group if one can be determined
 app.GetIndicatorIcon = function(group)
@@ -1692,7 +1698,7 @@ app.GetIndicatorIcon = function(group)
 		local asset = group.indicatorIcon;
 		if asset then
 			return app.asset(asset);
-		elseif group.e or group.u then
+		else
 			asset = GetUnobtainableTexture(group);
 			if asset then
 				return asset;
@@ -2147,10 +2153,14 @@ app.BuildDiscordQuestInfoTable = function(id, infoText, questChange, questRef, c
 			tinsert(info, k..":"..tostring(v))
 		end
 	end
-	-- TODO: show account-wide unlock quests of various types... DF Campaign/ZC WQ unlock...etc?
+	local acctUnlocks = {
+		C_QuestLog_IsQuestFlaggedCompleted(72366) and "DF_CA" or "N",	-- Dragonflight Campaign Complete
+		C_QuestLog_IsQuestFlaggedCompleted(75658) and "DF_ZC" or "N",	-- Dragonflight Zaralek Caverns Complete
+	}
 	tinsert(info, "L:"..app.Level.." R:"..app.RaceID.." ("..app.Race..") C:"..app.ClassIndex.." ("..app.Class..")");
 	tinsert(info, "cov:"..(covInfo or "N/A").." renown"..(app.TableConcat(majorFactionInfo)));
 	tinsert(info, "skills"..(app.TableConcat(skills) or ""));
+	tinsert(info, "unlocks:"..app.TableConcat(acctUnlocks, nil, nil, "|"))
 	tinsert(info, "sq:"..app.SourceQuestString(questRef or id));
 	tinsert(info, "lq:"..(app.TableConcat(app.LastQuestsTurnedIn, nil, nil, "<") or ""));
 	tinsert(info, mapID and ("mapID:"..mapID.." ("..C_Map_GetMapInfo(mapID).name..")") or "mapID:??");
@@ -2690,6 +2700,7 @@ local function Resolve_Extract(results, group, field)
 	end
 	return results;
 end
+local GetAchievementNumCriteria = GetAchievementNumCriteria
 
 -- Defines a known set of functions which can be run via symlink resolution. The inputs to each function will be identical in order when called.
 -- searchResults - the current set of searchResults when reaching the current sym command
@@ -3043,76 +3054,14 @@ local ResolveFunctions = {
 	["myModID"] = function(finalized, searchResults, o)
 		FinalizeModID = o.modID;
 	end,
-	-- Instruction to query all criteria of an Achievement via the in-game APIs and generate Criteria data into the most-accurate Sources
-	["achievement_criteria"] = function(finalized, searchResults, o)
-		-- Instruction to select the criteria provided by the achievement this is attached to. (maybe build this into achievements?)
-		if GetAchievementNumCriteria then
-			local achievementID = o.achievementID;
-			if not achievementID then
-				app.PrintDebug("'achievement_criteria' used on a non-Achievement group")
-				return;
+	-- Instruction to use the modID from the Source object to filter matching modID on any Items within the finalized search results
+	["whereMyModID"] = function(finalized, searchResults, o)
+		local modID = o.modID
+		for k=#searchResults,1,-1 do
+			local s = searchResults[k];
+			if not s.modID or s.modID ~= modID then
+				tremove(searchResults, k);
 			end
-			local criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, id, criteriaObject, uniqueID
-			for criteriaID=1,GetAchievementNumCriteria(achievementID, true),1 do
-				criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, uniqueID = GetAchievementCriteriaInfo(achievementID, criteriaID, true);
-				if not uniqueID or uniqueID <= 0 then uniqueID = criteriaID; end
-				criteriaObject = app.CreateAchievementCriteria(uniqueID, {["achievementID"] = achievementID}, true);
-
-				-- SourceQuest
-				if criteriaType == 27 then
-					local quests = SearchForField("questID", assetID)
-					if #quests > 0 then
-						for _,c in ipairs(quests) do
-							-- criteria inherit their achievement data ONLY when the achievement data is actually referenced... this is required for proper caching
-							NestObject(c, criteriaObject);
-							BuildGroups(c);
-							CacheFields(criteriaObject);
-							app.DirectGroupUpdate(c);
-							criteriaObject = app.CreateAchievementCriteria(uniqueID, {["achievementID"] = achievementID}, true);
-							-- app.PrintDebug("Add-Crit",achievementID,uniqueID,"=>",c.hash)
-						end
-						-- added to the quest(s) groups, not added to achievement
-						criteriaObject = nil;
-					else
-						app.print("'achievement_criteria' Quest type missing Quest Source group!",achievementID,assetID)
-					end
-				-- Items
-				elseif criteriaType == 36 or criteriaType == 41 or criteriaType == 42 then
-					criteriaObject.providers = {{ "i", assetID }};
-				elseif criteriaType == 110	-- Casting spells on specific target
-					or criteriaType == 29 or criteriaType == 69	-- Buff Gained
-					or criteriaType == 52 or criteriaType == 53	-- Class/Race (TODO?)
-					or criteriaType == 54 -- Spell, by means of a personal buff?
-					or criteriaType == 43 then	-- Exploration
-						-- Ignored
-				elseif criteriaType == 0 then	-- NPC Kills
-					-- app.PrintDebug("NPC Kill Criteria",assetID)
-					local c = app.SearchForObject("npcID", assetID, "key")
-					if c then
-						-- criteria inherit their achievement data ONLY when the achievement data is actually referenced... this is required for proper caching
-						NestObject(c, criteriaObject);
-						BuildGroups(c);
-						CacheFields(criteriaObject);
-						app.DirectGroupUpdate(c);
-						-- app.PrintDebug("Add-Crit",achievementID,uniqueID,"=>",c.hash)
-						-- added to the npc group, not added to achievement
-						criteriaObject = nil;
-					elseif assetID and assetID > 0 then
-						app.print("'achievement_criteria' NPC type missing NPC Source group!",achievementID,assetID)
-						criteriaObject.crs = { assetID };
-					end
-				else
-					--app.print("Unhandled Criteria Type", criteriaType, assetID, achievementID);
-				end
-				-- Criteria was not Sourced, so put it under the Achievement
-				if criteriaObject then
-					NestObject(o, criteriaObject);
-					CacheFields(criteriaObject);
-					tinsert(searchResults, criteriaObject);
-				end
-			end
-			BuildGroups(o);
-			app.DirectGroupUpdate(o);
 		end
 	end,
 	-- Instruction to include only search results where an item is a relic (Not used currently)
@@ -3127,6 +3076,95 @@ local ResolveFunctions = {
 	-- 	end
 	-- end,
 };
+
+-- Replace achievementy_criteria function if criteria API doesn't exist
+if GetAchievementNumCriteria then
+	-- Instruction to query all criteria of an Achievement via the in-game APIs and generate Criteria data into the most-accurate Sources
+	ResolveFunctions.achievement_criteria = function(finalized, searchResults, o)
+		-- Instruction to select the criteria provided by the achievement this is attached to. (maybe build this into achievements?)
+		local achievementID = o.achievementID;
+		if not achievementID then
+			app.PrintDebug("'achievement_criteria' used on a non-Achievement group")
+			return;
+		end
+		local criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, id, criteriaObject, uniqueID
+		for criteriaID=1,GetAchievementNumCriteria(achievementID, true),1 do
+			criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, uniqueID = GetAchievementCriteriaInfo(achievementID, criteriaID, true);
+			if not uniqueID or uniqueID <= 0 then uniqueID = criteriaID; end
+			criteriaObject = app.CreateAchievementCriteria(uniqueID, {["achievementID"] = achievementID}, true);
+
+			-- criteriaType ref: https://warcraft.wiki.gg/wiki/API_GetAchievementCriteriaInfo
+			-- Quest source
+			if criteriaType == 27	-- Completing a quest
+			then
+				local quests = SearchForField("questID", assetID)
+				if #quests > 0 then
+					for _,c in ipairs(quests) do
+						-- criteria inherit their achievement data ONLY when the achievement data is actually referenced... this is required for proper caching
+						NestObject(c, criteriaObject);
+						BuildGroups(c);
+						CacheFields(criteriaObject);
+						app.DirectGroupUpdate(c);
+						criteriaObject = app.CreateAchievementCriteria(uniqueID, {["achievementID"] = achievementID}, true);
+						-- app.PrintDebug("Add-Crit",achievementID,uniqueID,"=>",c.hash)
+					end
+					-- added to the quest(s) groups, not added to achievement
+					criteriaObject = nil;
+				else
+					app.print("'achievement_criteria' Quest type missing Quest Source group!","Quest",assetID,app:Linkify("Achievement #"..achievementID,app.Colors.ChatLink,"search:achievementID:"..achievementID))
+				end
+			-- NPC source
+			elseif criteriaType == 0	-- Monster kill
+			then
+				-- app.PrintDebug("NPC Kill Criteria",assetID)
+				local c = app.SearchForObject("npcID", assetID)
+				if c then
+					-- criteria inherit their achievement data ONLY when the achievement data is actually referenced... this is required for proper caching
+					NestObject(c, criteriaObject);
+					BuildGroups(c);
+					CacheFields(criteriaObject);
+					app.DirectGroupUpdate(c);
+					-- app.PrintDebug("Add-Crit",achievementID,uniqueID,"=>",c.hash)
+					-- added to the npc group, not added to achievement
+					criteriaObject = nil;
+				elseif assetID and assetID > 0 then
+					app.print("'achievement_criteria' NPC type missing NPC Source group!","NPC",assetID,app:Linkify("Achievement #"..achievementID,app.Colors.ChatLink,"search:achievementID:"..achievementID))
+					criteriaObject.crs = { assetID };
+				end
+			-- Items
+			elseif criteriaType == 36	-- Acquiring items (soulbound)
+				or criteriaType == 41	-- Eating or drinking a specific item
+				or criteriaType == 42	-- Fishing things up
+				or criteriaType == 57	-- Having items (tabards and legendaries)
+			then
+				criteriaObject.providers = {{ "i", assetID }};
+			-- Currency
+			elseif criteriaType == 12	-- Collecting currency
+			then
+				criteriaObject.cost = {{ "c", assetID, reqQuantity }};
+			-- Ignored
+			elseif criteriaType == 29	-- Casting a spell (often crafting)
+				or criteriaType == 43	-- Exploration
+				or criteriaType == 52	-- Killing specific classes of player
+				or criteriaType == 53	-- Kill-a-given-race (TODO?)
+				or criteriaType == 54	-- Using emotes on targets
+				or criteriaType == 69	-- Buff Gained
+				or criteriaType == 110	-- Casting spells on specific target
+			then
+				-- nothing to do here
+			else
+				--app.print("Unhandled Criteria Type", criteriaType, assetID, achievementID);
+				-- app.PrintDebug("Collecting currency",criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, uniqueID)
+			end
+			-- Criteria was not Sourced, so return it in search results
+			if criteriaObject then
+				CacheFields(criteriaObject);
+				tinsert(searchResults, criteriaObject);
+			end
+		end
+	end
+end
+
 -- Subroutine Logic Cache
 local SubroutineCache = {
 	["pvp_gear_base"] = function(finalized, searchResults, o, cmd, tierID, headerID1, headerID2)
@@ -3677,7 +3715,7 @@ ResolveSymbolicLink = function(o)
 	if #finalized > 0 then
 		local cloned = {};
 		MergeObjects(cloned, finalized, true);
-		-- if app.Debugging then print("Symbolic Link for", oKey,oKey and o[oKey], "contains", #cloned, "values after filtering.") end
+		-- app.PrintDebug("Symbolic Link for", oKey,oKey and o[oKey], "contains", #cloned, "values after filtering.")
 		-- if any symlinks are left at the lowest level, go ahead and fill them
 		-- Apply any modID if necessary
 		local sHash;
@@ -3731,7 +3769,7 @@ ResolveSymbolicLink = function(o)
 		end
 		return cloned;
 	else
-		-- if app.Debugging then print("Symbolic Link for ", oKey, " ",oKey and o[oKey], " contained no values after filtering.") end
+		-- app.PrintDebug("Symbolic Link for ", oKey, " ",oKey and o[oKey], " contained no values after filtering.")
 	end
 end
 
@@ -3759,7 +3797,13 @@ end
 -- NOTE: ONLY performs the symlink for 'achievement_criteria'
 app.FillAchievementCriteriaAsync = function(o)
 	local sym = o.sym
-	if not sym then return end
+	if not sym then
+		-- manually apply achievement_criteria symlink if no symlink exists
+		-- this is insane but actually works... bloated AF and needs refinement of checking for existing criteria etc.
+		-- o.sym = {{"achievement_criteria"}}
+		-- app.FillRunner.Run(ResolveSymlinkGroupAsync, o);
+		return
+	end
 
 	local sym = sym[1][1]
 	if sym ~= "achievement_criteria" then return end
@@ -3772,6 +3816,42 @@ end	-- Symlink Lib
 -- Search Results Lib
 local GetCachedSearchResults;
 do
+local conversions = app.Settings.AdditionalIDValueConversions
+-- add a value conversion for sourceID to include a checkmark/x
+conversions.sourceID = function(sourceID)
+	local info = C_TransmogCollection_GetSourceInfo(sourceID)
+	return sourceID .. " " .. GetCollectionIcon(info and info.isCollected)
+end
+-- for questID, also check if there's an otherFactionQuestID (Bfa Warfront Rares)
+conversions.questID = function(questID, group)
+	local otherFactionQuestID = group.otherFactionQuestID;
+	if otherFactionQuestID then
+		return "["..(app.FactionID == Enum.FlightPathFaction.Alliance and FACTION_HORDE or FACTION_ALLIANCE).." "..otherFactionQuestID.."] "..questID
+	end
+	return questID
+end
+app.AddAdditionalIDsTooltipLines = function(infoOrTooltip, group)
+	local val, convfunc
+	local idLocales, conv = app.Settings.AdditionalIDs, app.Settings.AdditionalIDValueConversions
+	local isTooltip = infoOrTooltip.AddLine and true
+	if isTooltip then
+		for _,id in ipairs(app.Settings.ActiveAdditionalIDs) do
+			val = group[id]
+			if val then
+				convfunc = conv[id]
+				infoOrTooltip:AddDoubleLine(idLocales[id], convfunc and convfunc(val, group) or val)
+			end
+		end
+	else
+		for _,id in ipairs(app.Settings.ActiveAdditionalIDs) do
+			val = group[id]
+			if val then
+				convfunc = conv[id]
+				tinsert(infoOrTooltip, { left = idLocales[id], right = convfunc and convfunc(val, group) or val });
+			end
+		end
+	end
+end
 local ContainsLimit, ContainsExceeded;
 local function BuildContainsInfo(item, entries, indent, layer)
 	local g = item and item.g;
@@ -3803,7 +3883,7 @@ local function BuildContainsInfo(item, entries, indent, layer)
 					BuildContainsInfo(group, entries, indent .. "  ", layer + 1);
 				end
 				-- else
-				-- 	if app.Debugging then print("EXCLUDE",app.Debugging,GetProgressTextForRow(group),group.hash,group.key,group.key and group[group.key]) end
+				-- 	app.PrintDebug("EXCLUDE",app.Debugging,GetProgressTextForRow(group),group.hash,group.key,group.key and group[group.key])
 			end
 		end
 	end
@@ -4025,11 +4105,12 @@ GetCachedSearchResults = function(search, method, paramA, paramB, ...)
 						end
 						if app.Settings:GetTooltipSetting("SharedAppearances") then
 							local text;
+							local useItemIDs, origSource = app.Settings:GetTooltipSetting("itemID"), app.Settings:GetTooltipSetting("IncludeOriginalSource")
 							if app.Settings:GetTooltipSetting("OnlyShowRelevantSharedAppearances") then
 								-- The user doesn't want to see Shared Appearances that don't match the item's requirements.
 								for i,otherSourceID in ipairs(allVisualSources) do
 									if otherSourceID == sourceID and not sourceGroup.missing then
-										if app.Settings:GetTooltipSetting("IncludeOriginalSource") then
+										if origSource then
 											local link = sourceGroup.link or sourceGroup.silentLink;
 											if not link then
 												link = RETRIEVING_DATA;
@@ -4045,7 +4126,7 @@ GetCachedSearchResults = function(search, method, paramA, paramB, ...)
 											else
 												text = "   ";
 											end
-											tinsert(info, { left = text .. link .. (app.Settings:GetTooltipSetting("itemID") and " (*)" or ""), right = GetCollectionIcon(ATTAccountWideData.Sources[sourceID])});
+											tinsert(info, { left = text .. link .. (useItemIDs and " (*)" or ""), right = GetCollectionIcon(ATTAccountWideData.Sources[sourceID])});
 										end
 									else
 										local otherATTSource = app.SearchForObject("s", otherSourceID, "field");
@@ -4068,7 +4149,7 @@ GetCachedSearchResults = function(search, method, paramA, paramB, ...)
 												else
 													text = "   ";
 												end
-												tinsert(info, { left = text .. link .. (app.Settings:GetTooltipSetting("itemID") and (" (" .. (otherItemID or "???") .. ")") or ""), right = GetCollectionIcon(otherATTSource.collected)});
+												tinsert(info, { left = text .. link .. (useItemIDs and (" (" .. (otherItemID or "???") .. ")") or ""), right = GetCollectionIcon(otherATTSource.collected)});
 											end
 										else
 											local otherSource = C_TransmogCollection_GetSourceInfo(otherSourceID);
@@ -4078,7 +4159,7 @@ GetCachedSearchResults = function(search, method, paramA, paramB, ...)
 													link = RETRIEVING_DATA;
 													working = true;
 												end
-												text = " |CFFFF0000!|r " .. link .. (app.Settings:GetTooltipSetting("itemID") and (" (" .. (otherSourceID == sourceID and "*" or otherSource.itemID or "???") .. ")") or "");
+												text = " |CFFFF0000!|r " .. link .. (useItemIDs and (" (" .. (otherSourceID == sourceID and "*" or otherSource.itemID or "???") .. ")") or "");
 												if otherSource.isCollected then ATTAccountWideData.Sources[otherSourceID] = 1; end
 												tinsert(info, { left = text	.. " |CFFFF0000(" .. (IsRetrieving(link) and "INVALID BLIZZARD DATA " or "MISSING IN ATT ") .. otherSourceID .. ")|r", right = GetCollectionIcon(otherSource.isCollected)});	-- This is debug info for contribs, do not localize it
 											end
@@ -4089,7 +4170,7 @@ GetCachedSearchResults = function(search, method, paramA, paramB, ...)
 								-- This is where we need to calculate the requirements differently because Unique Mode users are extremely frustrating.
 								for i,otherSourceID in ipairs(allVisualSources) do
 									if otherSourceID == sourceID and not sourceGroup.missing then
-										if app.Settings:GetTooltipSetting("IncludeOriginalSource") then
+										if origSource then
 											local link = sourceGroup.link or sourceGroup.silentLink;
 											if not link then
 												link = RETRIEVING_DATA;
@@ -4105,7 +4186,7 @@ GetCachedSearchResults = function(search, method, paramA, paramB, ...)
 											else
 												text = "   ";
 											end
-											tinsert(info, { left = text .. link .. (app.Settings:GetTooltipSetting("itemID") and " (*)" or ""), right = GetCollectionIcon(ATTAccountWideData.Sources[sourceID])});
+											tinsert(info, { left = text .. link .. (useItemIDs and " (*)" or ""), right = GetCollectionIcon(ATTAccountWideData.Sources[sourceID])});
 										end
 									else
 										local otherATTSource = app.SearchForObject("s", otherSourceID, "field");
@@ -4128,7 +4209,7 @@ GetCachedSearchResults = function(search, method, paramA, paramB, ...)
 												text = "   ";
 											end
 											local otherItemID = otherATTSource.modItemID or otherATTSource.itemID or otherATTSource.silentItemID;
-											text = text .. link .. (app.Settings:GetTooltipSetting("itemID") and (" (" .. (otherItemID or "???") .. ")") or "");
+											text = text .. link .. (useItemIDs and (" (" .. (otherItemID or "???") .. ")") or "");
 
 											-- Show all of the reasons why an appearance does not meet given criteria.
 											-- Only show Shared Appearances that match the requirements for this class to prevent people from assuming things.
@@ -4162,7 +4243,7 @@ GetCachedSearchResults = function(search, method, paramA, paramB, ...)
 													link = RETRIEVING_DATA;
 													working = true;
 												end
-												text = " |CFFFF0000!|r " .. link .. (app.Settings:GetTooltipSetting("itemID") and (" (" .. (otherSourceID == sourceID and "*" or otherSource.itemID or "???") .. ")") or "");
+												text = " |CFFFF0000!|r " .. link .. (useItemIDs and (" (" .. (otherSourceID == sourceID and "*" or otherSource.itemID or "???") .. ")") or "");
 												if otherSource.isCollected then ATTAccountWideData.Sources[otherSourceID] = 1; end
 												tinsert(info, { left = text	.. " |CFFFF0000(" .. (IsRetrieving(link) and "INVALID BLIZZARD DATA " or "MISSING IN ATT ") .. otherSourceID .. ")|r", right = GetCollectionIcon(otherSource.isCollected)});	-- This is debug info for contribs, do not localize it
 											end
@@ -4194,14 +4275,12 @@ GetCachedSearchResults = function(search, method, paramA, paramB, ...)
 							tinsert(info, { left = Colorize(sourceID .. ":" .. tostring(sourceInfo.visualID), app.Colors.SourceIgnored) });
 							tinsert(info, { left = Colorize(itemString, app.Colors.SourceIgnored) });
 						end
-						if app.Settings:GetTooltipSetting("visualID") then tinsert(info, { left = L["VISUAL_ID"], right = tostring(sourceInfo.visualID) }); end
-						if app.Settings:GetTooltipSetting("sourceID") then tinsert(info, { left = L["SOURCE_ID"], right = sourceID .. " " .. GetCollectionIcon(sourceInfo.isCollected) }); end
+						for _,j in ipairs(group.g or group) do
+							j.visualID = sourceInfo.visualID
+						end
 					end
 				end
 
-				if app.Settings:GetTooltipSetting("itemID") then tinsert(info, { left = L["ITEM_ID"], right = tostring(itemID) }); end
-				if modID and app.Settings:GetTooltipSetting("modID") then tinsert(info, { left = "Mod ID", right = tostring(modID) }); end
-				if bonusID and app.Settings:GetTooltipSetting("bonusID") then tinsert(info, { left = "Bonus ID", right = tostring(bonusID) }); end
 				if app.Settings:GetTooltipSetting("SpecializationRequirements") then
 					local specs = GetFixedItemSpecInfo(itemID);
 					-- specs is already filtered/sorted to only current class
@@ -4783,12 +4862,15 @@ GetCachedSearchResults = function(search, method, paramA, paramB, ...)
 		end
 
 		-- If the user wants to show the progress of this search result, do so
-		if app.Settings:GetTooltipSetting("Enabled") and app.Settings:GetTooltipSetting("Progress") and (group.key ~= "spellID" or group.collectible) then
+		if app.Settings:GetTooltipSetting("Progress") and (group.key ~= "spellID" or group.collectible) then
 			group.collectionText = GetProgressTextForTooltip(group, app.Settings:GetTooltipSetting("ShowIconOnly"));
 
 			-- add the progress as a new line for encounter tooltips instead of using right text since it can overlap the NPC name
 			if group.encounterID then tinsert(info, 1, { left = "Progress", right = group.collectionText }); end
 		end
+
+		-- Add various extra field info if enabled in settings
+		app.AddAdditionalIDsTooltipLines(info, group)
 
 		-- If there was any informational text generated, then attach that info.
 		if #info > 0 then
@@ -6577,13 +6659,13 @@ local function MarkUniqueCollectedSourcesBySource(knownSourceID, currentCharacte
 		if not canMog then return; end
 		local factionRaces = app.Modules.FactionData.FACTION_RACES;
 		for _,sourceID in ipairs(visualIDs) do
-			-- if app.Debugging then print("visualID",knownSource.visualID,"s",sourceID,"known:",acctSources[sourceID)] end
+			-- app.PrintDebug("visualID",knownSource.visualID,"s",sourceID,"known:",acctSources[sourceID)]
 			-- If it is not currently marked collected on the account
 			if not acctSources[sourceID] then
 				-- for current character only, all we care is that the knownItem is not exclusive to another
 				-- race/class to consider all shared appearances as 'collected' for the current character
 				if currentCharacterUsable then
-					-- if app.Debugging then print("current character usable") end
+					-- app.PrintDebug("current character usable")
 					acctSources[sourceID] = 2;
 				else
 					-- Find the check Source in ATT
@@ -6633,7 +6715,7 @@ local function MarkUniqueCollectedSourcesBySource(knownSourceID, currentCharacte
 										or checkSource.categoryID == 4 --[[CHEST: Robe vs Armor]]
 										or app.SlotByInventoryType[knownSource.invType] == app.SlotByInventoryType[checkSource.invType])
 								then
-									-- if app.Debugging then print("Unique Collected s:",sourceID); end
+									-- app.PrintDebug("Unique Collected s:",sourceID);
 									acctSources[sourceID] = 2;
 								-- else print("sources share visual and filters but different equips",item.s,sourceID)
 								end
@@ -7543,7 +7625,7 @@ local function TryPopulateQuestRewards(questObject)
 	for j=1,numCurrencies,1 do
 		currencyID = select(4, GetQuestLogRewardCurrencyInfo(j, questID));
 		if currencyID then
-			-- if app.Debugging then print("TryPopulateQuestRewards_currencies:found",questID,currencyID,questObject.missingCurr) end
+			-- app.PrintDebug("TryPopulateQuestRewards_currencies:found",questID,currencyID,questObject.missingCurr)
 
 			currencyID = tonumber(currencyID);
 			local item = { ["currencyID"] = currencyID };
@@ -7598,16 +7680,16 @@ local function TryPopulateQuestRewards(questObject)
 					for _,o in ipairs(data.g) do
 						-- nest cached non-items
 						if not o.itemID then
-							-- if app.Debugging then print("nested-nonItem",o.hash) end
+							-- app.PrintDebug("nested-nonItem",o.hash)
 							tinsert(nonItemNested, o);
 						-- cached items need to merge with corresponding API item based on simple itemID
 						elseif apiItems[o.itemID] then
-							-- if app.Debugging then print("nested-merged",o.hash) end
+							-- app.PrintDebug("nested-merged",o.hash)
 							MergeProperties(apiItems[o.itemID], o, true);
 						--  if it is not a WQ or is a 'raid' (world boss)
 						elseif questObject.isRaid or not questObject.isWorldQuest then
 							-- otherwise just get nested
-							-- if app.Debugging then print("nested-item",o.hash) end
+							-- app.PrintDebug("nested-item",o.hash)
 							tinsert(nonItemNested, o);
 						end
 					end
@@ -7650,24 +7732,31 @@ end
 app.TryPopulateQuestRewards = function(questObject)
 	app.FunctionRunner.Run(TryPopulateQuestRewards, questObject);
 end
+local function PrintBreadcrumbWarning(title, questID, group)
+	if not group.text then
+		Callback(PrintBreadcrumbWarning, title, questID, group)
+		return
+	end
+
+	app.print(sformat(L["QUEST_PREVENTS_BREADCRUMB_COLLECTION_FORMAT"],
+		title,
+		app:Linkify(questID, app.Colors.ChatLink, "search:questID:"..questID),
+		group.text,
+		app:Linkify(group.questID, app.Colors.Locked, "search:questID:"..group.questID)))
+
+	app:PlayRemoveSound()
+end
 -- Will print a warning message and play a warning sound if the given QuestID being completed will prevent being able to complete a breadcrumb
 -- (as far as ATT is capable of knowing)
 app.CheckForBreadcrumbPrevention = function(title, questID)
 	if questID then
 		local nextQuests = SearchForField("nextQuests", questID);
 		if #nextQuests > 0 then
-			local warning;
 			for _,group in pairs(nextQuests) do
-				if not group.collected and app.RecursiveCharacterRequirementsFilter(group) then
-					app.print(sformat(L["QUEST_PREVENTS_BREADCRUMB_COLLECTION_FORMAT"],
-						title,
-						app:Linkify(questID, app.Colors.ChatLink, "search:questID:"..questID),
-						group.text or RETRIEVING_DATA,
-						app:Linkify(group.questID, app.Colors.Locked, "search:questID:"..group.questID)));
-					warning = true;
+				if not group.collected and app.RecursiveCharacterRequirementsFilter(group) and app.RecursiveUnobtainableFilter(group) then
+					PrintBreadcrumbWarning(title, questID, group)
 				end
 			end
-			if warning then app:PlayRemoveSound(); end
 		end
 	end
 end
@@ -8022,7 +8111,8 @@ app.CreateAchievementCategory = function(id, t)
 end
 
 -- Achievement Criteria Lib
-local EJ_GetCreatureInfo = EJ_GetCreatureInfo;
+local EJ_GetCreatureInfo, GetAchievementCriteriaInfoByID
+	= EJ_GetCreatureInfo, GetAchievementCriteriaInfoByID
 -- Criteria field values which will use the value of the respective Achievement instead
 local UseParentAchievementValueKeys = {
 	"c", "classID", "races", "r", "u", "e", "pb", "pvp"
@@ -8047,6 +8137,60 @@ local function GetParentAchievementInfo(t, key)
 	end
 	DelayedCallback(app.report, 1, "Missing Referenced Achievement!",id);
 end
+-- Returns expected criteria data for either criteriaIndex or criteriaID
+local function GetCriteriaInfo(achievementID, criteriaIndexOrID)
+	local criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, criteriaID, eligible
+		= GetAchievementCriteriaInfoByID(achievementID, criteriaIndexOrID, true)
+	if not criteriaString and criteriaIndexOrID <= GetAchievementNumCriteria(achievementID) then
+		criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, criteriaID, eligible
+		= GetAchievementCriteriaInfo(achievementID, criteriaIndexOrID, true)
+	end
+	return criteriaString, criteriaType, completed, quantity, reqQuantity, charName, flags, assetID, quantityString, criteriaID, eligible
+end
+local function default_name(t)
+	if t.link then return t.link; end
+	if t.encounterID then
+		return EJ_GetEncounterInfo(t.encounterID);
+	end
+	local achievementID = t.achievementID;
+	if achievementID then
+		local criteriaID = t.criteriaID;
+		if criteriaID then
+			local name = GetCriteriaInfo(achievementID, criteriaID);
+			if not IsRetrieving(name) then return name; end
+
+			local providers = t.providers;
+			if providers then
+				for k,v in ipairs(providers) do
+					if v[2] > 0 then
+						if v[1] == "o" then
+							return app.ObjectNames[v[2]];
+						elseif v[1] == "i" then
+							return GetItemInfo(v[2]);
+						elseif v[1] == "n" then
+							return app.NPCNameFromID[v[2]];
+						end
+					end
+				end
+			end
+
+			local sourceQuests = t.sourceQuests;
+			if sourceQuests then
+				local name
+				for k,id in ipairs(sourceQuests) do
+					name = app.GetQuestName(id);
+					if name then
+						return name
+					end
+				end
+				return
+			end
+		end
+	end
+	app.PrintDebug("failed to retrieve criteria name",achievementID,t.criteriaID)
+	return L["WRONG_FACTION"];
+end
+local cache = app.CreateCache("hash")
 local criteriaFields = {
 	["key"] = function(t)
 		return "criteriaID";
@@ -8065,47 +8209,7 @@ local criteriaFields = {
 		end
 	end,
 	["name"] = function(t)
-		if t.link then return t.link; end
-		if t.encounterID then
-			return EJ_GetEncounterInfo(t.encounterID);
-		end
-		local achievementID = t.achievementID;
-		if achievementID then
-			local criteriaID = t.criteriaID;
-			if criteriaID then
-				local name = t.GetInfo(achievementID, criteriaID, true);
-				if not IsRetrieving(name) then return name; end
-
-				local providers = t.providers;
-				if providers then
-					for k,v in ipairs(providers) do
-						if v[2] > 0 then
-							if v[1] == "o" then
-								return app.ObjectNames[v[2]];
-							elseif v[1] == "i" then
-								return GetItemInfo(v[2]);
-							elseif v[1] == "n" then
-								return app.NPCNameFromID[v[2]];
-							end
-						end
-					end
-				end
-
-				local sourceQuests = t.sourceQuests;
-				if sourceQuests then
-					local name
-					for k,id in ipairs(sourceQuests) do
-						name = app.GetQuestName(id);
-						if name then
-							return name
-						end
-					end
-					return RETRIEVING_DATA
-				end
-			end
-		end
-		app.PrintDebug("failed to retrieve criteria name",achievementID,t.criteriaID)
-		return L["WRONG_FACTION"];
+		return cache.GetCachedField(t, "name", default_name)
 	end,
 	["description"] = function(t)
 		if t.encounterID then
@@ -8164,15 +8268,12 @@ local criteriaFields = {
 			if app.CurrentCharacter.Achievements[achievementID] then return true; end
 			local criteriaID = t.criteriaID;
 			if criteriaID then
-				return select(3, t.GetInfo(achievementID, criteriaID, true));
+				return select(3, GetCriteriaInfo(achievementID, criteriaID));
 			end
 		end
 	end,
 	["index"] = function(t)
 		return 1;
-	end,
-	GetInfo = function()
-		return GetAchievementCriteriaInfoByID;
 	end,
 };
 criteriaFields.collectible = fields.collectible;
@@ -8183,21 +8284,9 @@ for _,key in ipairs(UseParentAchievementValueKeys) do
 		return GetParentAchievementInfo(t, key);
 	end
 end
-app.BaseAchievementCriteria = app.BaseObjectFields(criteriaFields, "BaseAchievementCriteria");
-
-local criteriaFieldsWithIndex = RawCloneData(criteriaFields);
-local function GetAchievementCriteriaInfoWithoutThrowingADumbassError(achievementID, criteriaID, hidden)
-	if criteriaID <= GetAchievementNumCriteria(achievementID, hidden) then
-		return GetAchievementCriteriaInfo(achievementID, criteriaID, hidden);
-	elseif app.IsGit then
-		-- Time to sleep for ever little print.
-		-- app.print("Invalid Achievement Criteria Index", achievementID, criteriaID);
-	end
-end
-criteriaFieldsWithIndex.GetInfo = function() return GetAchievementCriteriaInfoWithoutThrowingADumbassError; end;
-app.BaseAchievementCriteriaWithIndex = app.BaseObjectFields(criteriaFieldsWithIndex, "BaseAchievementCriteriaWithIndex");
+local BaseAchievementCriteria = app.BaseObjectFields(criteriaFields, "BaseAchievementCriteria");
 app.CreateAchievementCriteria = function(id, t, init)
-	t = setmetatable(constructor(id, t, "criteriaID"), id < 500 and app.BaseAchievementCriteriaWithIndex or app.BaseAchievementCriteria);
+	t = setmetatable(constructor(id, t, "criteriaID"), BaseAchievementCriteria);
 	if init then
 		GetParentAchievementInfo(t, "");
 		-- app.PrintDebug("CreateAchievementCriteria.Init",t.hash)
@@ -8712,7 +8801,29 @@ local function CacheInfo(t, field)
 end
 local function default_link(t)
 	if t.itemID then
-		return select(2, GetItemInfo(t.itemID));
+		local name, link, quality, _, _, _, _, _, _, icon, _, _, _, b = GetItemInfo(t.itemID);
+		if link then
+			--[[ -- Debug Prints
+			local _t, id = cache.GetCached(t);
+			print("rawset item info",id,link,name,quality,b)
+			--]]
+			t = cache.GetCached(t);
+			t.link = link;
+			t.q = quality;
+			if not t.name then
+				t.name = name
+			end
+			if not t.icon then
+				t.icon = icon
+			end
+			if quality > 6 then
+				-- heirlooms return as 1 but are technically BoE for our concern
+				t.b = 2;
+			else
+				t.b = b;
+			end
+			return link;
+		end
 	end
 end
 local CollectedSpeciesHelper = setmetatable({}, {
@@ -8789,6 +8900,9 @@ local fields = {
 	end,
 	["link"] = function(t)
 		return cache.GetCachedField(t, "link", default_link);
+	end,
+	["b"] = function(t)
+		return cache.GetCachedField(t, "b");
 	end,
 	["tsm"] = function(t)
 		return sformat("p:%d:1:3", t.speciesID);
@@ -10424,14 +10538,14 @@ local function default_costCollectibles(t)
 	if modItemID and modItemID ~= t.itemID then
 		id = modItemID;
 		results = SearchForField("itemIDAsCost", id);
-		-- if app.Debugging then print("itemIDAsCost.modItemID",id,results and #results) end
+		-- app.PrintDebug("itemIDAsCost.modItemID",id,results and #results)
 	end
 	-- If no results, search by itemID + modID only if different
 	if not results or #results < 1 then
 		id = GetGroupItemIDWithModID(nil, t.itemID, t.modID);
 		if id ~= modItemID then
 			results = SearchForField("itemIDAsCost", id);
-			-- if app.Debugging then print("itemIDAsCost.modID",id,results and #results) end
+			-- app.PrintDebug("itemIDAsCost.modID",id,results and #results)
 		end
 	end
 	-- If no results, search by plain itemID only
@@ -10683,7 +10797,6 @@ local fields = RawCloneData(itemFields, {
 	end,
 });
 local BaseItemSource = app.BaseObjectFields(fields, "BaseItemSource");
-
 app.CreateItemSource = function(sourceID, itemID, t)
 	t = setmetatable(constructor(sourceID, t, "s"), BaseItemSource);
 	t.itemID = itemID;
@@ -11500,7 +11613,8 @@ app.GetCurrentMapID = function()
 	local substitutions = L.QUEST_ID_TO_MAP_ID[originalMapID];
 	if substitutions then
 		for questID,mapID in pairs(substitutions) do
-			if not C_QuestLog_IsQuestFlaggedCompleted(questID) then
+			-- if quest is unflagged but has been flagged at some point for this character, allow the mapID switch
+			if not C_QuestLog_IsQuestFlaggedCompleted(questID) and app.CurrentCharacter.Quests[questID] then
 				return mapID;
 			end
 		end
@@ -11938,10 +12052,6 @@ local npcFields = {
 	["displayID"] = function(t)
 		return app.NPCDisplayIDFromID[t.npcID];
 	end,
-	["creatureID"] = function(t)	-- TODO: Do something about this, it's silly.
-		return t.npcID;
-	end,
-
 	["iconAsDefault"] = function(t)
 		return (t.parent and t.parent.headerID == app.HeaderConstants.VENDORS and "Interface\\Icons\\INV_Misc_Coin_01")
 			or app.DifficultyIcons[GetRelativeValue(t, "difficultyID") or 1];
@@ -13219,7 +13329,7 @@ local function UpdateGroup(parent, group)
 				UpdateGroups(group, g);
 			end
 
-			-- if app.Debugging then print("UpdateGroup.g.Updated",group.progress,group.total,group.__type) end
+			-- app.PrintDebug("UpdateGroup.g.Updated",group.progress,group.total,group.__type)
 			SetGroupVisibility(parent, group);
 		else
 			SetThingVisibility(parent, group);
@@ -14949,6 +15059,9 @@ RowOnEnter = function (self)
 			GameTooltip:ClearLines();
 		end
 
+		local toggleAttachTooltips = not app.Settings:GetTooltipSetting("Enabled")
+		-- all tooltips from ATT windows should always show expected data
+		if toggleAttachTooltips then app.Settings:SetTooltipSetting("Enabled", true) end
 		local link = reference.link or reference.silentLink;
 		local _, linkAdded;
 		if link then
@@ -14998,6 +15111,8 @@ RowOnEnter = function (self)
 				-- app.PrintDebug("No Search Data",reference.hash)
 			end
 		end
+
+		if toggleAttachTooltips then app.Settings:SetTooltipSetting("Enabled", false) end
 
 		-- Miscellaneous fields
 		local missingMiscData;
@@ -15050,7 +15165,7 @@ RowOnEnter = function (self)
 			else
 				minlvl = reference.lvl;
 			end
-			if app.Settings:GetTooltipSetting("Enabled") and app.Settings:GetTooltipSetting("LevelRequirements") then
+			if app.Settings:GetTooltipSetting("LevelRequirements") then
 				-- i suppose a maxlvl of 1 might exist?
 				if maxlvl and maxlvl > 0 then
 					GameTooltip:AddDoubleLine(L["REQUIRES_LEVEL"], tostring(minlvl) .. " to " .. tostring(maxlvl));
@@ -15060,24 +15175,7 @@ RowOnEnter = function (self)
 				end
 			end
 		end
-		if reference.b and app.Settings:GetTooltipSetting("binding") then GameTooltip:AddDoubleLine("Binding", tostring(reference.b)); end
-		if reference.requireSkill and app.Settings:GetTooltipSetting("Enabled") and app.Settings:GetTooltipSetting("ProfessionRequirements") then GameTooltip:AddDoubleLine(L["REQUIRES"], tostring(GetSpellInfo(app.SkillIDToSpellID[reference.requireSkill] or 0) or C_TradeSkillUI.GetTradeSkillDisplayName(reference.requireSkill))); end
-		if reference.f and reference.f > 0 and app.Settings:GetTooltipSetting("filterID") then GameTooltip:AddDoubleLine(L["FILTER_ID"], tostring(L["FILTER_ID_TYPES"][reference.f])); end
-		if reference.achievementID and app.Settings:GetTooltipSetting("achievementID") then GameTooltip:AddDoubleLine(L["ACHIEVEMENT_ID"], tostring(reference.achievementID)); end
-		if reference.achievementCategoryID and app.Settings:GetTooltipSetting("achievementCategoryID") then GameTooltip:AddDoubleLine(L["ACHIEVEMENT_CATEGORY_ID"], tostring(reference.achievementCategoryID)); end
-		if reference.artifactID and app.Settings:GetTooltipSetting("artifactID") then GameTooltip:AddDoubleLine(L["ARTIFACT_ID"], tostring(reference.artifactID)); end
-		if reference.s and not reference.link and app.Settings:GetTooltipSetting("sourceID") then GameTooltip:AddDoubleLine(L["SOURCE_ID"], tostring(reference.s)); end
-		if reference.azeriteEssenceID then
-			if app.Settings:GetTooltipSetting("azeriteEssenceID") then GameTooltip:AddDoubleLine(L["AZERITE_ESSENCE_ID"], tostring(reference.azeriteEssenceID)); end
-		end
-		if reference.difficultyID and app.Settings:GetTooltipSetting("difficultyID") then GameTooltip:AddDoubleLine(L["DIFFICULTY_ID"], tostring(reference.difficultyID)); end
-		if app.Settings:GetTooltipSetting("creatureID") then
-			if reference.creatureID then
-				GameTooltip:AddDoubleLine(L["CREATURE_ID"], tostring(reference.creatureID));
-			elseif reference.npcID then
-				GameTooltip:AddDoubleLine(L["NPC_ID"], tostring(reference.npcID));
-			end
-		end
+		if reference.requireSkill and app.Settings:GetTooltipSetting("ProfessionRequirements") then GameTooltip:AddDoubleLine(L["REQUIRES"], tostring(GetSpellInfo(app.SkillIDToSpellID[reference.requireSkill] or 0) or C_TradeSkillUI.GetTradeSkillDisplayName(reference.requireSkill))); end
 		if reference.crs then
 			-- extreme amounts of creatures tagged, then only list a summary of how many...
 			if #reference.crs > 25 then
@@ -15092,9 +15190,6 @@ RowOnEnter = function (self)
 				end
 			end
 		end
-		if reference.encounterID and app.Settings:GetTooltipSetting("encounterID") then GameTooltip:AddDoubleLine(L["ENCOUNTER_ID"], tostring(reference.encounterID)); end
-		if reference.factionID and app.Settings:GetTooltipSetting("factionID") then GameTooltip:AddDoubleLine(L["FACTION_ID"], tostring(reference.factionID)); end
-		if reference.headerID and app.Settings:GetTooltipSetting("headerID") then GameTooltip:AddDoubleLine(L["HEADER_ID"], tostring(reference.headerID)); end
 		local minReputation, maxReputation = reference.minReputation, reference.maxReputation;
 		if minReputation and (not maxReputation or minReputation[1] ~= maxReputation[1]) then
 			local standingId, offset = app.GetReputationStanding(reference.minReputation)
@@ -15126,19 +15221,9 @@ RowOnEnter = function (self)
 			msg = msg .. " " .. app.GetCurrentFactionStandingText(factionID, maxStandingId) .. L["_WITH_"] .. factionName .. ".";
 			GameTooltip:AddLine(msg);
 		end
-		if reference.followerID and app.Settings:GetTooltipSetting("followerID") then GameTooltip:AddDoubleLine(L["FOLLOWER_ID"], tostring(reference.followerID)); end
-		if reference.illusionID and app.Settings:GetTooltipSetting("illusionID") then GameTooltip:AddDoubleLine(L["ILLUSION_ID"], tostring(reference.illusionID)); end
 		if reference.instanceID then
-			if app.Settings:GetTooltipSetting("instanceID") then GameTooltip:AddDoubleLine(L["INSTANCE_ID"], tostring(reference.instanceID)); end
 			GameTooltip:AddDoubleLine(L["LOCKOUT"], L[reference.isLockoutShared and "SHARED" or "SPLIT"]);
 		end
-		if reference.objectID and app.Settings:GetTooltipSetting("objectID") then GameTooltip:AddDoubleLine(L["OBJECT_ID"], tostring(reference.objectID)); end
-		if reference.speciesID and app.Settings:GetTooltipSetting("speciesID") then GameTooltip:AddDoubleLine(L["SPECIES_ID"], tostring(reference.speciesID)); end
-		if reference.spellID and app.Settings:GetTooltipSetting("spellID") then GameTooltip:AddDoubleLine(L["SPELL_ID"], tostring(reference.spellID)); end
-		if reference.tierID and app.Settings:GetTooltipSetting("tierID") then GameTooltip:AddDoubleLine(L["EXPANSION_ID"], tostring(reference.tierID)); end
-		if reference.setID then GameTooltip:AddDoubleLine(L["SET_ID"], tostring(reference.setID)); end
-		if reference.flightPathID and app.Settings:GetTooltipSetting("flightPathID")  then GameTooltip:AddDoubleLine(L["FLIGHT_PATH_ID"], tostring(reference.flightPathID)); end
-		if reference.mapID and app.Settings:GetTooltipSetting("mapID") then GameTooltip:AddDoubleLine(L["MAP_ID"], tostring(reference.mapID)); end
 		if reference.coords and app.Settings:GetTooltipSetting("Coordinates") then
 			local currentMapID, str = app.CurrentMapID;
 			local coords = reference.coords;
@@ -15220,17 +15305,9 @@ RowOnEnter = function (self)
 			if total then GameTooltip:AddLine(tostring(progress) .. " / " .. tostring(total) .. L["COLLECTED_STRING"]); end
 		end
 		if reference.titleID then
-			if app.Settings:GetTooltipSetting("titleID") then GameTooltip:AddDoubleLine(L["TITLE_ID"], tostring(reference.titleID)); end
 			GameTooltip:AddDoubleLine(" ", L[reference.saved and "KNOWN_ON_CHARACTER" or "UNKNOWN_ON_CHARACTER"]);
 		end
 		if refQuestID then
-			if app.Settings:GetTooltipSetting("questID") then
-				GameTooltip:AddDoubleLine(L["QUEST_ID"], tostring(refQuestID));
-				local otherFactionQuestID = reference.otherFactionQuestID;
-				if otherFactionQuestID then
-					GameTooltip:AddDoubleLine(L["QUEST_ID"].. " ["..(app.FactionID == Enum.FlightPathFaction.Alliance and FACTION_HORDE or FACTION_ALLIANCE).."]", tostring(otherFactionQuestID));
-				end
-			end
 			local oneTimeQuestCharGuid = ATTAccountWideData.OneTimeQuests[refQuestID];
 			if oneTimeQuestCharGuid then
 				local charData = ATTCharacterData[oneTimeQuestCharGuid];
@@ -15250,7 +15327,7 @@ RowOnEnter = function (self)
 				end
 			end
 		end
-		if reference.c and app.Settings:GetTooltipSetting("Enabled") and app.Settings:GetTooltipSetting("ClassRequirements") then
+		if reference.c and app.Settings:GetTooltipSetting("ClassRequirements") then
 			local str,colors = "",app.Settings:GetTooltipSetting("UseMoreColors");
 			local classInfo, classColor;
 			for i,cl in ipairs(reference.c) do
@@ -15265,7 +15342,7 @@ RowOnEnter = function (self)
 			end
 			GameTooltip:AddDoubleLine(L["CLASSES_CHECKBOX"], str);
 		end
-		if app.Settings:GetTooltipSetting("Enabled") and app.Settings:GetTooltipSetting("RaceRequirements") then
+		if app.Settings:GetTooltipSetting("RaceRequirements") then
 			if reference.races then
 				local str = "";
 				for i,race in ipairs(reference.races) do
@@ -15294,9 +15371,6 @@ RowOnEnter = function (self)
 		elseif reference.isYearly then GameTooltip:AddLine(L["COMPLETED_YEARLY"]);
 		elseif reference.repeatable then GameTooltip:AddLine(L["COMPLETED_MULTIPLE"]); end
 		if initialBuild and not GameTooltipModel:TrySetModel(reference) and reference.icon then
-			if app.Settings:GetTooltipSetting("iconPath") then
-				GameTooltip:AddDoubleLine("Icon", reference.icon);
-			end
 			GameTooltipIcon:SetSize(72,72);
 			GameTooltipIcon.icon:SetTexture(reference.preview or reference.icon);
 			local texcoord = reference.previewtexcoord or reference.texcoord;
@@ -15306,12 +15380,6 @@ RowOnEnter = function (self)
 				GameTooltipIcon.icon:SetTexCoord(0, 1, 0, 1);
 			end
 			GameTooltipIcon:Show();
-		end
-		if reference.displayID and app.Settings:GetTooltipSetting("displayID") then
-			GameTooltip:AddDoubleLine("Display ID", reference.displayID);
-		end
-		if reference.modelID and app.Settings:GetTooltipSetting("displayID") then
-			GameTooltip:AddDoubleLine("Model ID", reference.modelID);
 		end
 		if reference.cost then
 			if type(reference.cost) == "table" then
@@ -15435,6 +15503,10 @@ RowOnEnter = function (self)
 			if reference.pvp then
 				GameTooltip:AddLine(L["REQUIRES_PVP"], 1, 1, 1, 1, true);
 			end
+
+			-- Add any ID toggle fields
+			app.AddAdditionalIDsTooltipLines(GameTooltip, reference)
+
 			-- Tooltip for something which was not attached via search, so mark it as complete here
 			GameTooltip.AttachComplete = true;
 		end
@@ -16007,7 +16079,7 @@ local function UpdateWindow(self, force, got)
 			data.expanded = true;
 			if not self.doesOwnUpdate and
 				(force or (self.shouldFullRefresh and visible)) then
-				-- app.PrintDebug("TopLevelUpdateGroup",self.Suffix)
+				-- app.PrintDebug("TLUG",self.Suffix)
 				app.TopLevelUpdateGroup(data);
 				self.HasPendingUpdate = nil;
 				-- app.PrintDebugPrior("Done")
@@ -17755,30 +17827,48 @@ customWindowUpdates["CurrentInstance"] = function(self, force, got)
 				end
 			end
 		end
+		local Wrap = app.WrapObject;
+		local BaseVisualHeaderClone = app.BaseObjectFields({
+			-- ["back"] = function(t)
+			-- 	return 0.3;	-- visibility of which rows are cloned
+			-- end,
+		}, "VisualHeaderClone");
+		-- Fields in the wrapped object which should not persist when represented as a Header
+		for field,_ in pairs(app.MergeSkipFields) do
+			BaseVisualHeaderClone.__class[field] = app.EmptyFunction
+		end
+		for _,field in ipairs({
+			"sort",
+			"collectible",
+			"sourceParent",
+			"customCollect",
+			"minReputation",
+			"maxReputation",
+			"OnUpdate",
+			"OnTooltip",
+			"_CheckCollectible",
+			"_SettingsRefresh",
+			"_up",
+			"up",
+			"races",
+			"r",
+			"c",
+			"nmc",
+			"nmr",
+			"hash",
+		}) do
+			BaseVisualHeaderClone.__class[field] = app.EmptyFunction
+		end
+		-- Wraps a given object such that it can act as a filtered Header of the base group
+		local CreateWrapVisualHeader = function(base, groups)
+			return Wrap(setmetatable(constructor(nil, {g=groups or {}}, "WrapVisualHeader"), BaseVisualHeaderClone), base);
+		end
 		-- Returns the consolidated data format for the next header level
 		-- Headers are forced not collectible, and will have their content sorted, and can be copied from the existing Source header
 		local function CreateHeaderData(group, header)
 			-- copy an uncollectible version of the existing header
 			if header then
-				header = CreateObject(header, true);
-				header.g = { group };
-				header.sort = true;
-				header.collectible = false;
-				-- header groups in minilist shouldn't be attached to some random other source location/data/info
-				-- since they will be comprised of groups from many different source locations
-				header.sourceParent = nil;
-				header.customCollect = nil;
-				header.requireSkill = nil;
-				header.minReputation = nil;
-				header.maxReputation = nil;
-				header.u = nil;
-				header.e = nil;
-				header.races = nil;
-				header.r = nil;
-				header.c = nil;
-				header.nmc = nil;
-				header.nmr = nil;
-				return header;
+				return CreateWrapVisualHeader(header, {group})
 			else
 				return { g = { group }, ["sort"] = true, ["collectible"] = false, };
 			end
@@ -17837,6 +17927,7 @@ customWindowUpdates["CurrentInstance"] = function(self, force, got)
 
 			-- Get all results for this map, without any results that have been cloned into Source Ignored groups
 			results = app.CleanInheritingGroups(SearchForField("mapID", self.mapID), "sourceIgnored");
+			-- app.PrintDebug("Rebuild#",#results);
 			if results and #results > 0 then
 				-- app.PrintDebug(#results,"Minilist Results for mapID",self.mapID)
 				-- Simplify the returned groups
@@ -18136,6 +18227,7 @@ customWindowUpdates["CurrentInstance"] = function(self, force, got)
 				}));
 				self:BuildData();
 			end
+			-- app.PrintDebugPrior("RB-Done")
 			return true;
 		end
 		end)();
@@ -18214,7 +18306,8 @@ customWindowUpdates["CurrentInstance"] = function(self, force, got)
 		self.data.back = 1;
 		self.data.indent = 0;
 		self.data.visible = true;
-		self:BaseUpdate(force or got, got);
+		Callback(self.BaseUpdate, self, force or got, got)
+		-- self:BaseUpdate(force or got, got);
 	end
 end;
 customWindowUpdates["ItemFilter"] = function(self, force)
@@ -21919,7 +22012,7 @@ local function AssignDirectGroupOnUpdates()
 end
 
 local function PrePopulateAchievementSymlinks()
-	local achCache = app.SearchForFieldContainer("achievementID")
+	local achCache = app.CleanInheritingGroups(app.SearchForFieldContainer("achievementID"), "sourceIgnored")
 	-- app.PrintDebug("FillAchSym")
 	if achCache then
 		local FillSym = app.FillAchievementCriteriaAsync
@@ -22401,6 +22494,7 @@ app.events.ARTIFACT_UPDATE = function(...)
 	end
 end
 app.events.PLAYER_ENTERING_WORLD = function(...)
+	-- app.PrintDebug("PLAYER_ENTERING_WORLD",...)
 	app.InWorld = true;
 	-- refresh any custom collects for this character
 	app.RefreshCustomCollectibility();

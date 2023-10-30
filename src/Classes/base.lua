@@ -165,11 +165,20 @@ local DefaultFields = {
 	["sourceID"] = function(t)
 		return t.s
 	end,
+	["filterID"] = function(t)
+		return t.f
+	end,
+	["iconPath"] = function(t)
+		return t.icon
+	end,
+	["creatureID"] = function(t)	-- TODO: Do something about this, it's silly.
+		return t.npcID;
+	end,
 };
 
 -- Creates a Base Object Table which will evaluate the provided set of 'fields' (each field value being a keyed function)
 local classDefinitions, _cache = {};
-local BaseObjectFields = function(fields, className)
+local BaseObjectFields = not app.__perf and function(fields, className)
 	if not className then
 		print("A Class Name must be declared when using BaseObjectFields");
 	end
@@ -199,6 +208,39 @@ local BaseObjectFields = function(fields, className)
 		end
 	};
 end
+-- performance tracking wrapped base fields
+or function(fields, className)
+	if not className then
+		print("A Class Name must be declared when using BaseObjectFields");
+	end
+	local class = { __type = function() return className; end };
+	if not classDefinitions[className] then
+		classDefinitions[className] = class;
+	else
+		print("A Class has already been defined with that name!", className);
+	end
+	if fields then
+		for key,method in pairs(fields) do
+			class[key] = method;
+		end
+	end
+
+	-- Inject the default fields into the class
+	for key,method in pairs(DefaultFields) do
+		if not rawget(class, key) then
+			class[key] = method;
+		end
+	end
+	app.__perf.CaptureTable(class, className)
+	return {
+		__class = class,
+		__index = function(t, key)
+			_cache = rawget(class, key);
+			if _cache then return _cache(t); end
+		end
+	}
+end
+
 app.BaseObjectFields = BaseObjectFields;
 app.BaseClass = BaseObjectFields(nil, "BaseClass");
 
@@ -308,25 +350,28 @@ app.WrapObject = function(object, baseObject)
 	end
 	-- save the set of originally-defined meta-fields of this object's class
 	object.__class = objectMeta.__class
-	objectMeta = objectMeta.__index
-	if not objectMeta then
+	local objectMetaIndex = objectMeta.__index
+	if not objectMetaIndex then
 		error("Tried to WrapObject which has no index!")
 	end
-	if type(objectMeta) == "function" then
+	if type(objectMetaIndex) == "function" then
 		return setmetatable(object, {
 			__index = function(t, key)
-				-- app.PrintDebug("__wrapf",key,t.__class,object.__class[key],objectMeta(t, key),baseObject[key])
+				-- app.PrintDebug("__wrapf",key
+				-- 	,"Wrapped?",t.__class[key]~=nil
+				-- 	,"WrapVal:",objectMetaIndex(t, key)
+				-- 	,"BaseVal:",baseObject[key])
 				-- the original class of the object defines a function for 'key' then use that only (allows false/nil overrides properly)
 				if t.__class[key] then
-					return objectMeta(t, key)
+					return objectMetaIndex(t, key)
 				end
-				return objectMeta(t, key) or baseObject[key];
+				return baseObject[key];
 			end
 		});
 	end
 	return setmetatable(object, {
 		__index = function(t, key)
-			return objectMeta[key] or baseObject[key];
+			return objectMetaIndex[key] or baseObject[key];
 		end
 	});
 end

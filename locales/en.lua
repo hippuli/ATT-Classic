@@ -632,7 +632,7 @@ local L = {
 	["SCREENSHOT_COLLECTED_CHECKBOX"] = "Collected Things Trigger a Screenshot";
 	["SCREENSHOT_COLLECTED_CHECKBOX_TOOLTIP"] = "Enable this option if you want to take a screenshot for every Thing you collect.";
 	["ICON_LEGEND_LABEL"] = "Icon Legend";
-	["ICON_LEGEND_TEXT"] = app.ccColors.White .. "|TInterface\\AddOns\\AllTheThings\\assets\\status-unobtainable.blp:0|t " .. "Unobtainable" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-prerequisites.blp:0|t " .. "Obtainable only with prerequisites" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-seasonal-unavailable.blp:0|t " .. "Seasonal content" .. "\n|TInterface\\FriendsFrame\\StatusIcon-Offline:0|t " .. "Unavailable on current character";
+	["ICON_LEGEND_TEXT"] = app.ccColors.White .. "|TInterface\\AddOns\\AllTheThings\\assets\\status-unobtainable.blp:0|t " .. "Unobtainable" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-prerequisites.blp:0|t " .. "Obtainable only with prerequisites" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-seasonal-available.blp:0|t " .. "Available seasonal content" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-seasonal-unavailable.blp:0|t " .. "Unavailable seasonal content" .. "\n|TInterface\\FriendsFrame\\StatusIcon-Offline:0|t " .. "Unavailable on current character";
 	["CHAT_COMMANDS_LABEL"] = "Chat Commands";
 	["CHAT_COMMANDS_TEXT"] = "/att |cffFFFFFFor|R /things |cffFFFFFFor|R /allthethings\n|cffFFFFFFOpens the Main List.\n\n|R/att mini |cffFFFFFFor|R /attmini\n|cffFFFFFFOpens the Mini List.\n\n|R/att bounty\n|cffFFFFFFOpens a list of bugged or unconfirmed items.\n\n|R/att ra |cffFFFFFFor|R /attra\n|cffFFFFFFOpens the Raid Assistant.\n\n|R/att wq |cffFFFFFFor|R /attwq\n|cffFFFFFFOpens the World Quests List.\n\n|R/att item:1234 |cffFFFFFFor|R /att [Item Link]\n|cffFFFFFFOpens a window with shared appearances. Also works with other things, such as|R quest:1234|cffFFFFFF, |Rnpcid:1234|cffFFFFFF, |Rmapid:1234|cffFFFFFF or |Rrecipeid:1234|cffFFFFFF.\n\n|R/att rwp\n|cffFFFFFFShows all future Removed With Patch things.\n\n|R/att nwp\n|cffFFFFFFShows all current New With Patch things.\n\n|R/att random |cffFFFFFFor|R /attrandom |cffFFFFFFor|R /attran\n|cffFFFFFFOpens the Random List.\n\n|R/att unsorted\n|cffFFFFFFOpens a list of unsourced items. Best opened in Debug Mode.\n\n|R/rl\n|cffFFFFFFReload your WoW interface.|R";
 
@@ -673,9 +673,9 @@ local L = {
 	-- About tab
 	["ABOUT_PAGE"] = "About";
 	["ABOUT_1"] = " |CFFFFFFFFis a collection tracking addon that shows you where and how to get everything in the game! We have a large community of users on our Discord (link at the bottom) where you can ask questions, submit suggestions as well as report bugs or missing items. If you find something collectible or a quest that isn't documented, you can tell us on the Discord, or for the more technical savvy, we have a Git that you may contribute directly to.\n\nWhile we do strive for completion, there's a lot of stuff getting added into the game each patch, so if we're missing something, please understand that we're a small team trying to keep up with changes as well as collect things ourselves. :D\n\nFeel free to ask me questions when I'm streaming and I'll try my best to answer it, even if it's not directly related to ATT (general WoW addon programming as well).\n\n- |r|Cffff8000Crieve|CFFFFFFFF\n\nPS: Check out All The Things Classic and Wrath Classic!|r";
-	["ABOUT_2"] = "Active Contributors: |CFFFFFFFF(in no particular order)\nGold, Dead Serious, Sanctuari, Molkree, Runawaynow, Braghe, Myrhial, Darkal, Tag, Jezartroz, AlexSoft, Jenstonedart, and the rest of the ALL THE THINGS Discord!|r";
-	["ABOUT_3"] = "\nHall of Fame: |CFFFFFFFF(in no particular order)\nDaktar, Lucetia, Slumber, Avella, Aiue, Oiche, Oxlotus, Eiltherune, Blueyleader, Iyanden, Pr3vention, BigBlaris, Talonzor, Mogwai, Heallie, Eckhardt, Boohyaka, Sadidorf|r";
-	["ABOUT_4"] = "\n\n|CFFFFFFFFSpecial Shoutout to AmiYuy (CanIMogIt) and Caerdon (Caerdon Wardrobe). You should absolutely download their addons to get the collection icons on items in your bags!|r ",
+	["ABOUT_2"] = "Active Contributors: |CFFFFFFFF(in no particular order)\nGold, Dead Serious, Sanctuari, Molkree, Runawaynow, Braghe, Myrhial, Darkal, Tag, Jezartroz, Pr3vention, AlexSoft, Jenstonedart, and the rest of the ALL THE THINGS Discord!|r";
+	["ABOUT_3"] = "\nHall of Fame: |CFFFFFFFF(in no particular order)\nDaktar, Lucetia, Slumber, Avella, Aiue, Oiche, Oxlotus, Eiltherune, Blueyleader, Iyanden, BigBlaris, Talonzor, Mogwai, Heallie, Eckhardt, Boohyaka, Sadidorf|r";
+	["ABOUT_4"] = "\n\n|CFFFFFFFFSpecial Shoutout to AmiYuy (CanIMogIt) and Caerdon (Caerdon Wardrobe). You should absolutely download their addons to get the collection icons on items in your bags!|r ";
 	["ABOUT_5"] = "\n\n|CFFFFFFFFFor online collection comparing check out DataForAzeroth.com from Shoogen and WoWthing.org from Freddie!|r";
 
 	-- Binding Localizations
@@ -717,11 +717,11 @@ local L = {
 	["SECRETS_HEADER"] = "Secrets";
 	["LIMITED_QUANTITY"] = "This has a limited quantity and may not always be present on the vendor.";
 	["SOURCE_ID_MISSING"] = "Please report this Item and where it was acquired to the ATT Discord in #retail-errors!";
-	["ADDED_WITH_PATCH_FORMAT"] = "Added with patch %s";
-	["WAS_ADDED_WITH_PATCH_FORMAT"] = "Newly added with patch %s";
-	["ADDED_BACK_WITH_PATCH_FORMAT"] = "Added back with patch %s";
-	["WAS_ADDED_BACK_WITH_PATCH_FORMAT"] = "Newly added back with patch %s";
-	["REMOVED_WITH_PATCH_FORMAT"] = "Will be removed with patch %s";
+	["ADDED_WITH_PATCH_FORMAT"] = "Added in %s";
+	["WAS_ADDED_WITH_PATCH_FORMAT"] = "Added in %s";
+	["ADDED_BACK_WITH_PATCH_FORMAT"] = "Re-added in %s";
+	["WAS_ADDED_BACK_WITH_PATCH_FORMAT"] = "Added in %s";
+	["REMOVED_WITH_PATCH_FORMAT"] = "Removed in %s";
 
 	-- Filter Text
 	["ACHIEVEMENT_ID"] = "Achievement ID";
@@ -743,7 +743,7 @@ local L = {
 	["FLIGHT_PATH_ID"] = "Flight Path ID";
 	["MAP_ID"] = "Map ID";
 	["MOUNT_ID"] = "Mount ID";
-	["MUSIC_ROLL_ID"] = "Music Roll ID";
+	["MUSIC_ROLL_ID"] = "Music Roll ID";	-- not used
 	["NPC_ID"] = "NPC ID";
 	["OBJECT_ID"] = "Object ID";
 	["QUEST_ID"] = "Quest ID";

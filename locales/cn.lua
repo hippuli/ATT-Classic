@@ -520,7 +520,7 @@ ACC_WIDE_DEFAULT = "已追踪 ".. app.ccColors.Account .. ITEM_UPGRADE_DISCOUNT_
 		L.SCREENSHOT_COLLECTED_CHECKBOX = "收藏物品后触发截图";
 		L.SCREENSHOT_COLLECTED_CHECKBOX_TOOLTIP = "如果你想为你收藏的每件物品进行截图请启用此选项。";
 		L.ICON_LEGEND_LABEL = "图标图例";
-		L.ICON_LEGEND_TEXT = app.ccColors.White .. "|TInterface\\AddOns\\AllTheThings\\assets\\status-unobtainable.blp:0|t " .. "不可获得" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-prerequisites.blp:0|t " .. "仅在满足先决条件的情况下获得" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-seasonal-unavailable.blp:0|t " .. "季节性内容" .. "\n|TInterface\\FriendsFrame\\StatusIcon-Offline:0|t " .. "当前角色不可用";
+		L.ICON_LEGEND_TEXT = app.ccColors.White .. "|TInterface\\AddOns\\AllTheThings\\assets\\status-unobtainable.blp:0|t " .. "不可获得" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-prerequisites.blp:0|t " .. "仅在满足先决条件的情况下获得" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-seasonal-available.blp:0|t " .. AVAILABLE .."季节性内容" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-seasonal-unavailable.blp:0|t " .. UNAVAILABLE .. "季节性内容" .. "\n|TInterface\\FriendsFrame\\StatusIcon-Offline:0|t " .. "当前角色不可用";	--TODO: check (un)available seasonal content
 		L.CHAT_COMMANDS_LABEL = "聊天命令";
 		L.CHAT_COMMANDS_TEXT = "/att |cffFFFFFF或|R /things |cffFFFFFF或|R /allthethings\n|cffFFFFFF打开主列表。\n\n|R/att mini |cffFFFFFF或|R /attmini\n|cffFFFFFF打开小列表。\n\n|R/att bounty\n|cffFFFFFF打开被出错或未确认的物品列表。\n\n|R/att ra |cffFFFFFF或|R /attra\n|cffFFFFFF打开团队助手。\n\n|R/att wq |cffFFFFFF或|R /attwq\n|cffFFFFFF打开世界任务列表。\n\n|R/att item:1234 |cffFFFFFF或|R /att [物品链接]\n|cffFFFFFF打开一个共享外观的窗口。也适用于其他事物，例如|R quest:1234|cffFFFFFF，|Rnpcid:1234|cffFFFFFF，|Rmapid:1234|cffFFFFFF 或 |Rrecipeid:1234|cffFFFFFF。\n\n|R/att rwp\n|cffFFFFFF显示所有未来用补丁删除的东西。\n\n|R/att random |cffFFFFFF或|R /attrandom |cffFFFFFF或|R /attran\n|cffFFFFFF打开随机列表。\n\n|R/att unsorted\n|cffFFFFFF打开未知源物品列表。最好在调试模式下打开。\n\n|R/rl\n|cffFFFFFF重载魔兽界面。|R";
 
@@ -560,8 +560,8 @@ ACC_WIDE_DEFAULT = "已追踪 ".. app.ccColors.Account .. ITEM_UPGRADE_DISCOUNT_
 	-- About tab
 		L.ABOUT_PAGE = "关于";
 		L.ABOUT_1 = " |CFFFFFFFF是一个收藏跟踪插件，可以向您展示在游戏中获取所有内容的位置和方式！我们的 Discord 上有大量用户社区（底部链接），您可以在其中提问、提交建议以及报告错误或丢失的物品。如果发现一些收藏品或未记录的任务，可以在 Discord 上告诉我们，或者对于更精通技术的人，我们有一个您可以直接贡献的 Git。\n\n虽然我们努力争取完成，但每个补丁都会添加很多东西，所以如果我们遗漏了什么，请理解我们是一个小团队，试图跟上变化并自己收藏东西。:D\n\n在我直播时随时问我问题，我会尽力回答，即使它与 ATT（一般魔兽插件编程也是如此）没有直接关系。\n\n- |r|Cffff8000Crieve|CFFFFFFFF\n\n另外：查看 All The Things 经典旧世和巫妖王之怒经典旧世！！|r";
-		L.ABOUT_2 = "活跃贡献者：|CFFFFFFFF（排名不分先后）\nGold，Dead Serious，Sanctuari，Molkree，Runawaynow，Braghe，Myrhial，Darkal，Tag，Jezartroz，AlexSoft，Jenstonedart，以及 ALL THE THINGS Discord 其他人们！|r";
-		L.ABOUT_3 = "\n名人堂：|CFFFFFFFF（排名不分先后）\nDaktar，Lucetia，Slumber，Avella，Aiue，Oiche，Oxlotus，Eiltherune，Blueyleader，Iyanden，Pr3vention，BigBlaris，Talonzor，Mogwai，Heallie，Eckhardt，Boohyaka，Sadidorf|r";
+		L.ABOUT_2 = "活跃贡献者：|CFFFFFFFF（排名不分先后）\nGold，Dead Serious，Sanctuari，Molkree，Runawaynow，Braghe，Myrhial，Darkal，Tag，Jezartroz，Pr3vention, AlexSoft，Jenstonedart，以及 ALL THE THINGS Discord 其他人们！|r";
+		L.ABOUT_3 = "\n名人堂：|CFFFFFFFF（排名不分先后）\nDaktar，Lucetia，Slumber，Avella，Aiue，Oiche，Oxlotus，Eiltherune，Blueyleader，Iyanden，BigBlaris，Talonzor，Mogwai，Heallie，Eckhardt，Boohyaka，Sadidorf|r";
 		L.ABOUT_4 = "\n\n|CFFFFFFFF特别鸣谢 AmiYuy（CanIMogIt）和 Caerdon（Caerdon Wardrobe）。绝对应该下载他们的插件，以获得包中物品的收藏图标！|r ";
 		L.ABOUT_5 = "\n\n|CFFFFFFFF如需在线收集比较，请访问 Shoogen 的 DataForAzeroth.com 和 Freddie 的 WoWthing.org！|r";
 

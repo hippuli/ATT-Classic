@@ -520,7 +520,7 @@ ACC_WIDE_DEFAULT = "Отслеживается на "..app.ccColors.Account.."В
 		L.SCREENSHOT_COLLECTED_CHECKBOX = "Собранная Штучка заслуживает Скриншота";
 		L.SCREENSHOT_COLLECTED_CHECKBOX_TOOLTIP = "Включите данную опцию, если Вы хотите делать скриншот, когда Вы получаете новую Штучку.";
 		L.ICON_LEGEND_LABEL = "Аннотация иконок";
-		L.ICON_LEGEND_TEXT = app.ccColors.White .. "|TInterface\\AddOns\\AllTheThings\\assets\\status-unobtainable.blp:0|t " .. "Недоступно" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-prerequisites.blp:0|t " .. "Доступно с условием" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-seasonal-unavailable.blp:0|t " .. "Праздничный предмет" .. "\n|TInterface\\FriendsFrame\\StatusIcon-Offline:0|t " .. "Недоступно на текущем персонаже";
+		L.ICON_LEGEND_TEXT = app.ccColors.White .. "|TInterface\\AddOns\\AllTheThings\\assets\\status-unobtainable.blp:0|t " .. "Недоступно" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-prerequisites.blp:0|t " .. "Доступно с условием" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-seasonal-available.blp:0|t " .. "Доступная Праздничная Штучка" .. "\n|TInterface\\AddOns\\AllTheThings\\assets\\status-seasonal-unavailable.blp:0|t " .. "Недоступная Праздничная Штучка" .. "\n|TInterface\\FriendsFrame\\StatusIcon-Offline:0|t " .. "Недоступно на текущем персонаже";
 		L.CHAT_COMMANDS_LABEL = "Команды Чата";
 		L.CHAT_COMMANDS_TEXT = "/att |cffFFFFFFили|R /things |cffFFFFFFиои|R /allthethings\n|cffFFFFFFОткрыть Главный Список.\n\n|R/att mini |cffFFFFFFиои|R /attmini\n|cffFFFFFFОткрыть Мини Список.\n\n|R/att bounty\n|cffFFFFFFОткрыть список забагованных или неподтверждённых предметов.\n\n|R/att ra |cffFFFFFFили|R /attra\n|cffFFFFFFОткрыть Рейдовый Помощник.\n\n|R/att wq |cffFFFFFFили|R /attwq\n|cffFFFFFFОткрыть Список Локальных Заданий.\n\n|R/att item:1234 |cffFFFFFFили|R /att [Ссылка на Предмет]\n|cffFFFFFFОткрыть окно общих моделей. Также работает с другими Штучками, например, |R quest:1234|cffFFFFFF, |Rnpcid:1234|cffFFFFFF, |Rmapid:1234|cffFFFFFF или |Rrecipeid:1234|cffFFFFFF.\n\n|R/att rwp\n|cffFFFFFFПоказать все Штучки, которые будет невозможно получить в будущем.\n\n|R/att nwp\n|cffFFFFFFПоказать все Штучки, добавленные в последнем патче.\n\n|R/att random |cffFFFFFFили|R /attrandom |cffFFFFFFили|R /attran\n|cffFFFFFFОткрыть Случайный Список.\n\n|R/att unsorted\n|cffFFFFFFОткрыть список несортированных Штучек. Лучше в Режиме Отладки.\n\n|R/rl\n|cffFFFFFFПерезагрузить интерфейс WoW.|R";
 
@@ -560,8 +560,10 @@ ACC_WIDE_DEFAULT = "Отслеживается на "..app.ccColors.Account.."В
 	-- About tab
 		L.ABOUT_PAGE = "Об аддоне";
 		L.ABOUT_1 = " |CFFFFFFFF- модификация для отслеживания коллекции, которая показывает Вам где и как получить всё в игре! У нас большое сообщество в Discord (ссылка внизу), где Вы можете спрашивать, оставлять предложения, а также сообщать об ошибках и пропавших предметах. Если Вы нашли предмет или задание, которые не задокументированы, Вы можете сказать нам в Discord, для более технически подкованных у нас Git, в котором Вы можете участвовать.\n\nПока мы стремимся к выполнению, есть множество вещей, что добавляются в игру с каждым патчем, и если что-то отсутствует, пожалуйста, поймите, у нас небольшая команда, пытающаяся держать темп с изменениями, в то же время собирая Штучки. :D\n\nНе стесняйтесь спрашивать меня во время трансляций, даже если вопрос не связан напрямую с ATT (стандартное программирование аддонов WoW тоже).\nПримечание переводчика: на английском языке.\n\n- |r|Cffff8000Crieve|CFFFFFFFF\n\nPS: Зацените версию All The Things Classic и TBC Classic!\n\nНет, ATT не тот аддон, который ставит иконки в Ваших сумках. Это CanIMogIt и Caerdon Wardrobe!\n\nРекомендуем сайт для сравнения коллекций DataForAzeroth.com от shoogen!|r";
-		L.ABOUT_2 = "Дополнительные Участники: |CFFFFFFFF(в произвольном порядке)\nDaktar, Lucetia, Slumber, Gold, Avella, Aiue, Dead Serious, Oiche, Oxlotus, Eiltherune, Blueyleader, Iyanden, Pr3vention, BigBlaris, Talonzor, Mogwai, Heallie, Eckhardt, Boohyaka, Sadidorf, Sanctuari, Molkree, Runawaynow, Braghe, Myrhial, Darkal, Tag и весь остальной ALL THE THINGS Discord!\n\nОсобая Благодарность AmiYuy (CanIMogIt) и Caerdon (Caerdon Wardrobe).|r";
-		L.ABOUT_3 = "\n|CFFFFFFFFВы просто обязаны загрузить их аддоны для иконок коллекций в Ваших сумках!|r";
+		L.ABOUT_2 = "Активные Участники: |CFFFFFFFF(в произвольном порядке)\nGold, Dead Serious, Sanctuari, Molkree, Runawaynow, Braghe, Myrhial, Darkal, Tag, Jezartroz, Pr3vention, AlexSoft, Jenstonedart и весь остальной ALL THE THINGS Discord!|r";
+		L.ABOUT_3 = "\nЗал Славы: |CFFFFFFFF(в произвольном порядке)\nDaktar, Lucetia, Slumber, Avella, Aiue, Oiche, Oxlotus, Eiltherune, Blueyleader, Iyanden, BigBlaris, Talonzor, Mogwai, Heallie, Eckhardt, Boohyaka, Sadidorf|r";
+		L.ABOUT_4 = "\n\n|CFFFFFFFFОсобая Благодарность AmiYuy (CanIMogIt) и Caerdon (Caerdon Wardrobe). Вы просто обязаны загрузить их аддоны для иконок коллекций в Ваших сумках!|r ";
+		L.ABOUT_5 = "\n\n|CFFFFFFFFДля онлайн-сравнения коллекций посетите DataForAzeroth.com от Shoogen и WoWthing.org от Freddie!|r";
 
 	-- Binding Localizations
 		L.TOGGLE_ACCOUNT_MODE = "Переключить режим Аккаунта";
@@ -602,8 +604,11 @@ ACC_WIDE_DEFAULT = "Отслеживается на "..app.ccColors.Account.."В
 		L.SECRETS_HEADER = "Секреты";
 		L.LIMITED_QUANTITY = "Предмет имеется в ограниченном количестве и может не всегда быть доступен у торговца.";
 		L.SOURCE_ID_MISSING = "Пожалуйста, сообщите в канале #retail-errors на нашем сервере Discord, где Вы нашли эту вещь!";
-		L.ADDED_WITH_PATCH_FORMAT = "Это будет добавлено в патче %s";
-		L.REMOVED_WITH_PATCH_FORMAT = "Это исчезнет в патче %s";
+		L.ADDED_WITH_PATCH_FORMAT = "Добавлено в %s";
+		L.WAS_ADDED_WITH_PATCH_FORMAT = "Добавлено в %s";
+		--L.ADDED_BACK_WITH_PATCH_FORMAT = "Added back with patch %s";
+		--L.WAS_ADDED_BACK_WITH_PATCH_FORMAT = "Newly added back with patch %s";
+		L.REMOVED_WITH_PATCH_FORMAT = "Удалено через %s";
 
 	-- Icons and Collection Text
 		L.COLLECTED = "|T" .. app.asset("known") .. ":0|t |cff15abffСобрано|r";	-- Acquired the colors and icon from CanIMogIt.

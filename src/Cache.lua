@@ -8,10 +8,10 @@ local C_Map_GetAreaInfo = C_Map.GetAreaInfo;
 
 -- App locals
 local contains, classIndex, raceIndex, factionID =
-	app.contains, app.ClassIndex, app.RaceIndex, app.FactionID
+	app.contains, app.ClassIndex, app.RaceIndex, app.FactionID;
 
 -- Module locals
-local AllCaches, AllGamePatches, runners, QuestTriggers = {}, {}, {}, {}
+local AllCaches, AllGamePatches, postscripts, runners, QuestTriggers = {}, {}, {}, {}, {};
 local containerMeta = {
 	__index = function(t, id)
 		if id then
@@ -47,6 +47,8 @@ local currentCache, CacheFields;
 
 -- Cache a given group into the current cache for the provided field and value
 local function CacheField(group, field, value)
+	-- comment this in for testing if some caching issue happens
+	-- if not (field and value) then print("Attempting to cache invalid data", field, value, group.text); end
 	local c = currentCache[field][value]
 	c[#c + 1] = group
 end
@@ -72,47 +74,44 @@ local CreateDataCache = function(name, skipMapCaching)
 end
 currentCache = CreateDataCache("default");
 
-local currentMapCounters = setmetatable({}, {
-	__index = function(t, id) return 0; end,
-});
+local currentMapGroup, allowMapCaching = setmetatable({}, { __index = function() return end }), true
 local cacheAchievementID = function(group, value)
-	-- achievements used on maps should not cache the location for the achievement
-	if group.mapID then
-		--print("Map has an achievementID linked. This is a deprecated style.", group.hash);
-		return;
-	end
 	CacheField(group, "achievementID", value);
 end
 local cacheCreatureID = function(group, creatureID)
 	if creatureID > 0 then
 		CacheField(group, "creatureID", creatureID);
 	end
-end;
+end
 local cacheFactionID = function(group, id)
 	CacheField(group, "factionID", id);
 end
 local cacheHeaderID = function(group, headerID)
 	CacheField(group, "headerID", headerID);
 end
+local function allowCacheMapID(group, mapID)
+	-- already are within a caching group for this mapID or not allowing map caching, don't cache
+	if currentMapGroup[mapID] or not allowMapCaching then return end
+	-- this group should not be map-cached into its coord map
+	-- if the group has no sub-groups, then we allow caching for this new mapID, but don't capture it as a mapgroup
+	if not rawget(group, "g") then return true end
+	-- otherwise capture this group as the containing cache group of this mapID
+	-- app.PrintDebug(">>>map:",mapID,group.key,group[group.key])
+	currentMapGroup[mapID] = group
+	return true
+end
 local cacheMapID = function(group, mapID)
-	local count = currentMapCounters[mapID];
-	if count == 0 then
-		currentMapCounters[mapID] = 1;
-		if currentMapCounters[-1] == 0 then
-			CacheField(group, "mapID", mapID);
-		end
-	else
-		currentMapCounters[mapID] = count + 1;
-	end
-	return true;
-end;
+	if not allowCacheMapID(group, mapID) then return end
+	CacheField(group, "mapID", mapID);
+	return true
+end
 local cacheObjectID = function(group, objectID)
 	CacheField(group, "objectID", objectID);
 end;
 local cacheQuestID = function(group, questID)
 	CacheField(group, "questID", questID);
 end
-if app.Version == "[Git]" then
+if app.Debugging and app.Version == "[Git]" then
 	local L = app.L;
 	local referenceCounter = {};
 	app.ReferenceCounter = referenceCounter;
@@ -200,12 +199,11 @@ local cacheProviderOrCost = function(group, provider)
 end
 
 local nextCustomMapID = -2;
-local uncacheMap = function(group, mapID, field)
-	if mapID then
-		local count = currentMapCounters[mapID];
-		if count > 0 then
-			currentMapCounters[mapID] = count - 1;
-		end
+local uncacheMap = function(group, mapID)
+	-- remove this group's mapID if it is the current map group for this mapID
+	if currentMapGroup[mapID] == group then
+		-- app.PrintDebug("<<<map:",mapID,group.key,group[group.key])
+		currentMapGroup[mapID] = nil
 	end
 end;
 local mapKeyUncachers = {
@@ -216,15 +214,11 @@ local mapKeyUncachers = {
 		end
 	end,
 	["coord"] = function(group, coord)
-		if not (group.instanceID or group.mapID or group.objectiveID) then	-- Retail doesn't have this line, investigate why or if they should
-			uncacheMap(group, coord[3]);
-		end
+		uncacheMap(group, coord[3]);
 	end,
 	["coords"] = function(group, coords)
-		if not (group.instanceID or group.mapID or group.objectiveID) then	-- Retail doesn't have this line, investigate why or if they should
-			for i,coord in ipairs(coords) do
-				uncacheMap(group, coord[3]);
-			end
+		for i,coord in ipairs(coords) do
+			uncacheMap(group, coord[3]);
 		end
 	end,
 };
@@ -270,10 +264,6 @@ local fieldConverters = {
 		CacheField(group, "instanceID", value);
 	end,
 	["itemID"] = function(group, value)
-		local modItemID = group.modItemID or value;
-		if modItemID ~= value then
-			CacheField(group, "itemID", modItemID);
-		end
 		CacheField(group, "itemID", value);
 	end,
 	["otherItemID"] = function(group, value)
@@ -289,8 +279,8 @@ local fieldConverters = {
 		CacheField(group, "professionID", value);
 	end,
 	["questID"] = cacheQuestID,
-	["questIDA"] = cacheQuestID,	-- These are referenced in Retail, not sure if used.
-	["questIDH"] = cacheQuestID,	-- These are referenced in Retail, not sure if used.
+	["questIDA"] = cacheQuestID,
+	["questIDH"] = cacheQuestID,
 	["requireSkill"] = function(group, value)
 		CacheField(group, "requireSkill", value);	-- NOTE: professionID in Retail, investigate why
 	end,
@@ -516,16 +506,6 @@ local fieldConverters = {
 	end,
 };
 
----- Retail Differences ----
-if tonumber(app.GameBuildVersion) > 100000 then
-	-- 'altQuests' in Retail pretending to be the same quest as a different quest actually causes problems for searches
-	-- and it makes more sense to not pretend they're the same than to hamper existing logic with more conditionals to
-	-- make sure we actually get the data that we search for
-	fieldConverters.altQuests = nil;
-	-- 'awp' isn't needed for caching into 'AllGamePatches' currently... I don't really see a future where we 'pre-add' future Retail content in public releases
-	fieldConverters.awp = nil;
-end
-
 local _converter;
 local function _CacheFields(group)
 	local n = 0;
@@ -560,15 +540,90 @@ local function _CacheFields(group)
 		end
 	end
 end
+
+---- Retail Differences ----
+if tonumber(app.GameBuildVersion) > 100000 then
+	-- 'altQuests' in Retail pretending to be the same quest as a different quest actually causes problems for searches
+	-- and it makes more sense to not pretend they're the same than to hamper existing logic with more conditionals to
+	-- make sure we actually get the data that we search for
+	fieldConverters.altQuests = nil;
+	-- 'awp' isn't needed for caching into 'AllGamePatches' currently... I don't really see a future where we 'pre-add' future Retail content in public releases
+	fieldConverters.awp = nil;
+	-- Base Class provides auto-fields for these and they do no actual caching
+	fieldConverters.c = nil
+	fieldConverters.r = nil
+	fieldConverters.races = nil
+
+	-- use single iteration of each group by way of not performing any group field additions while the cache process is running
+	_CacheFields = function(group)
+		local mapKeys
+		local hasG = rawget(group, "g")
+		for key,value in pairs(group) do
+			_converter = fieldConverters[key];
+			if _converter then
+				if _converter(group, value) then
+					if mapKeys then mapKeys[key] = value
+					else mapKeys = { [key] = value }; end
+				end
+			end
+		end
+		if hasG then
+			for _,subgroup in ipairs(hasG) do
+				_CacheFields(subgroup);
+			end
+		end
+		if mapKeys then
+			for key,value in pairs(mapKeys) do
+				mapKeyUncachers[key](group, value);
+			end
+		end
+	end
+
+	-- Retail has this required modItemID field that complicates everything, so put that here instead.
+	local cacheGroupForModItemID = {}
+	fieldConverters.itemID = function(group, value)
+		CacheField(group, "itemID", value);
+		cacheGroupForModItemID[#cacheGroupForModItemID + 1] = group
+	end
+	tinsert(postscripts, function()
+		local modItemID
+		-- app.PrintDebug("caching for modItemID",#cacheGroupForModItemID)
+		for _,group in ipairs(cacheGroupForModItemID) do
+			modItemID = group.modItemID
+			if modItemID and modItemID ~= group.itemID then
+				CacheField(group, "itemID", modItemID)
+			end
+		end
+		wipe(cacheGroupForModItemID)
+		-- app.PrintDebug("caching for modItemID done")
+	end)
+
+	-- Retail doesn't have objectives so don't bother checking for it
+	fieldConverters.coord = function(group, coord)
+		-- don't cache mapID from coord for anything which is itself an actual instance or a map
+		if rawget(group, "instanceID") or rawget(group, "mapID") or rawget(group, "difficultyID") then return end
+		return cacheMapID(group, coord[3]);
+	end
+	fieldConverters.coords = function(group, coords)
+		-- don't cache mapID from coord for anything which is itself an actual instance or a map
+		if rawget(group, "instanceID") or rawget(group, "mapID") or rawget(group, "difficultyID") then return end
+		local any
+		for i,coord in ipairs(coords) do
+			any = cacheMapID(group, coord[3]) or any
+		end
+		return any;
+	end
+end
+
 CacheFields = function(group, skipMapCaching)
-	wipe(currentMapCounters);
-	wipe(runners);
-	currentMapCounters[-1] = skipMapCaching and 1 or 0;
+	allowMapCaching = not skipMapCaching
 	_CacheFields(group);
 	for i,runner in ipairs(runners) do
 		runner();
 	end
-	wipe(currentMapCounters);
+	for i,postscript in ipairs(postscripts) do
+		postscript();
+	end
 	wipe(runners);
 	return group;
 end
