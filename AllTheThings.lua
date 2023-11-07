@@ -62,8 +62,8 @@ local ATTAccountWideData;
 
 -- App & Module locals
 local ArrayAppend = app.ArrayAppend;
-local CacheFields, SearchForField, SearchForFieldContainer, SearchForSourceIDQuickly
-	= app.CacheFields, app.SearchForField, app.SearchForFieldContainer, app.SearchForSourceIDQuickly;
+local CacheFields, SearchForField, SearchForFieldContainer, SearchForSourceIDQuickly, GetRawField
+	= app.CacheFields, app.SearchForField, app.SearchForFieldContainer, app.SearchForSourceIDQuickly, app.GetRawField
 local AttachTooltipSearchResults = app.Modules.Tooltip.AttachTooltipSearchResults;
 local IsRetrieving = app.Modules.RetrievingData.IsRetrieving;
 local TryColorizeName = app.TryColorizeName;
@@ -3156,6 +3156,9 @@ if GetAchievementNumCriteria then
 			-- Criteria was not Sourced, so return it in search results
 			if criteriaObject then
 				CacheFields(criteriaObject);
+				-- this criteria object may have been turned into a cost via costs/providers assignment, so make sure we update those respective costs via the Cost Runner
+				-- if settings are changed while this is running, it's ok because it refreshes costs from the cache
+				app.Modules.Costs.Runner.Run(app.UpdateCostGroup, criteriaObject)
 				tinsert(searchResults, criteriaObject);
 			end
 		end
@@ -10531,21 +10534,21 @@ local function default_costCollectibles(t)
 	-- Search by modItemID if possible for accuracy
 	if modItemID and modItemID ~= t.itemID then
 		id = modItemID;
-		results = SearchForField("itemIDAsCost", id);
+		results = GetRawField("itemIDAsCost", id);
 		-- app.PrintDebug("itemIDAsCost.modItemID",id,results and #results)
 	end
 	-- If no results, search by itemID + modID only if different
 	if not results or #results < 1 then
 		id = GetGroupItemIDWithModID(nil, t.itemID, t.modID);
 		if id ~= modItemID then
-			results = SearchForField("itemIDAsCost", id);
+			results = GetRawField("itemIDAsCost", id);
 			-- app.PrintDebug("itemIDAsCost.modID",id,results and #results)
 		end
 	end
 	-- If no results, search by plain itemID only
 	if (not results or #results < 1) and t.itemID then
 		id = t.itemID;
-		results = SearchForField("itemIDAsCost", id);
+		results = GetRawField("itemIDAsCost", id);
 	end
 	if results and #results > 0 then
 		-- not sure we need to copy these into another table
@@ -11823,8 +11826,8 @@ end
 local function default_costCollectibles(t)
 	local id = t.itemID;
 	if id then
-		local results = SearchForField("itemIDAsCost", id);
-		if #results > 0 then
+		local results = GetRawField("itemIDAsCost", id);
+		if results and #results > 0 then
 			-- app.PrintDebug("default_costCollectibles",t.hash,id,#results)
 			return results;
 		end
@@ -15918,10 +15921,10 @@ RowOnEnter = function (self)
 			end
 		end
 		local fields = {
-			"collectibleAsUpgrade",
-			-- "__type",
-			-- "key",
-			-- "hash",
+			-- "collectibleAsUpgrade",
+			"__type",
+			"key",
+			"hash",
 			-- "name",
 			-- "link",
 			-- "sourceIgnored",
@@ -16689,6 +16692,12 @@ function app:GetDataCache()
 			app.CreateDynamicHeader("speciesID", {
 				name = AUCTION_CATEGORY_BATTLE_PETS,
 				icon = app.asset("Category_PetJournal")
+			}),
+
+			-- Character Unlocks
+			app.CreateDynamicHeader("characterUnlock", {
+				name = CHARACTER.." "..UNLOCK.."s",
+				icon = app.asset("Category_ItemSets")
 			}),
 
 			-- Conduits
@@ -17852,8 +17861,6 @@ customWindowUpdates["CurrentInstance"] = function(self, force, got)
 			"nmc",
 			"nmr",
 			"hash",
-			"expanded",
-			"indent",
 		}) do
 			BaseVisualHeaderClone.__class[field] = app.EmptyFunction
 		end
@@ -17973,13 +17980,6 @@ customWindowUpdates["CurrentInstance"] = function(self, force, got)
 
 					-- Get the header chain for the group
 					nextParent = group.parent;
-
-					-- Pre-nest some groups based on their type after grabbing the parent
-					-- Achievements / Achievement / Criteria
-					if group.key == "criteriaID" and group.achievementID then
-						-- print("pre-nest achieve",group.criteriaID, group.achievementID)
-						group = app.CreateAchievement(group.achievementID, CreateHeaderData(group));
-					end
 
 					-- Building the header chain for each mapped Thing
 					topHeader = nil;
@@ -20134,6 +20134,9 @@ customWindowUpdates["Tradeskills"] = function(self, force, got)
 				data = app.CreateProfession(self.lastTradeSkillID);
 				app.BuildSearchResponse_IgnoreUnavailableRecipes = true;
 				NestObjects(data, app:BuildSearchResponse("requireSkill", data.requireSkill));
+				-- Profession headers use 'professionID' and don't actually convey a requirement on knowing the skill
+				-- but in a Profession window for that skill it's nice to see what that skill can craft...
+				NestObjects(data, app:BuildSearchResponse("professionID", data.requireSkill));
 				app.BuildSearchResponse_IgnoreUnavailableRecipes = nil;
 				data.indent = 0;
 				data.visible = true;
@@ -22014,7 +22017,7 @@ local function PrePopulateAchievementSymlinks()
 	-- app.PrintDebug("FillAchSym")
 	if achCache then
 		local FillSym = app.FillAchievementCriteriaAsync
-		app.FillRunner.SetPerFrame(1000)
+		app.FillRunner.SetPerFrame(500)
 		local Run = app.FillRunner.Run
 		local group
 		for achID,groups in pairs(achCache) do
